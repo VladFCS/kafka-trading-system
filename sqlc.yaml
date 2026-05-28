@@ -1,0 +1,30 @@
+version: "2"
+
+sql:
+  - engine: "postgresql"
+    schema:
+      - "db/schema/order.sql"
+    queries:
+      - "db/queries/order.sql"
+    gen:
+      go:
+        package: "orderdb"
+        out: "internal/order-service/repository/sqlc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_empty_slices: true
+        emit_interface: false
+
+  - engine: "postgresql"
+    schema:
+      - "db/schema/market_data.sql"
+    queries:
+      - "db/queries/market_data.sql"
+    gen:
+      go:
+        package: "marketdatadb"
+        out: "internal/market-data-service/repository/sqlc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_empty_slices: true
+        emit_interface: false
