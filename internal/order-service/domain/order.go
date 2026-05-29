@@ -3,8 +3,6 @@ package domain
 import (
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -28,16 +26,16 @@ const (
 )
 
 type Order struct {
-	OrderID           string         `json:"order_id"`
-	CustomerID        string         `json:"customer_id"`
-	Symbol            string         `json:"symbol"`
-	Side              OrderSide      `json:"side"`
-	Price             pgtype.Numeric `json:"price"`
-	Quantity          pgtype.Numeric `json:"quantity"`
-	RemainingQuantity pgtype.Numeric `json:"remaining_quantity"`
-	Status            OrderStatus    `json:"status"`
-	IdempotencyKey    string         `json:"idempotency_key,omitempty"`
-	CanceledAt        *time.Time     `json:"canceled_at,omitempty"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
+	OrderID                string      `json:"order_id"`
+	CustomerID             string      `json:"customer_id"`
+	Symbol                 string      `json:"symbol"`
+	Side                   OrderSide   `json:"side"`
+	PriceCents             int64       `json:"price_cents"`
+	QuantityUnits          int64       `json:"quantity_units"`
+	RemainingQuantityUnits int64       `json:"remaining_quantity_units"`
+	Status                 OrderStatus `json:"status"`
+	IdempotencyKey         string      `json:"idempotency_key,omitempty"`
+	CanceledAt             *time.Time  `json:"canceled_at,omitempty"`
+	CreatedAt              time.Time   `json:"created_at"`
+	UpdatedAt              time.Time   `json:"updated_at"`
 }

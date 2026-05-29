@@ -9,6 +9,7 @@ package orderv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,22 +25,25 @@ const (
 type OrderStatus int32
 
 const (
-	OrderStatus_PENDING  OrderStatus = 0
-	OrderStatus_FILLED   OrderStatus = 1
-	OrderStatus_CANCELED OrderStatus = 2
+	OrderStatus_ORDER_STATUS_UNSPECIFIED OrderStatus = 0
+	OrderStatus_ORDER_STATUS_PENDING     OrderStatus = 1
+	OrderStatus_ORDER_STATUS_FILLED      OrderStatus = 2
+	OrderStatus_ORDER_STATUS_CANCELED    OrderStatus = 3
 )
 
 // Enum value maps for OrderStatus.
 var (
 	OrderStatus_name = map[int32]string{
-		0: "PENDING",
-		1: "FILLED",
-		2: "CANCELED",
+		0: "ORDER_STATUS_UNSPECIFIED",
+		1: "ORDER_STATUS_PENDING",
+		2: "ORDER_STATUS_FILLED",
+		3: "ORDER_STATUS_CANCELED",
 	}
 	OrderStatus_value = map[string]int32{
-		"PENDING":  0,
-		"FILLED":   1,
-		"CANCELED": 2,
+		"ORDER_STATUS_UNSPECIFIED": 0,
+		"ORDER_STATUS_PENDING":     1,
+		"ORDER_STATUS_FILLED":      2,
+		"ORDER_STATUS_CANCELED":    3,
 	}
 )
 
@@ -70,16 +74,73 @@ func (OrderStatus) EnumDescriptor() ([]byte, []int) {
 	return file_order_v1_order_proto_rawDescGZIP(), []int{0}
 }
 
+type OrderSide int32
+
+const (
+	OrderSide_ORDER_SIDE_UNSPECIFIED OrderSide = 0
+	OrderSide_ORDER_SIDE_BUY         OrderSide = 1
+	OrderSide_ORDER_SIDE_SELL        OrderSide = 2
+)
+
+// Enum value maps for OrderSide.
+var (
+	OrderSide_name = map[int32]string{
+		0: "ORDER_SIDE_UNSPECIFIED",
+		1: "ORDER_SIDE_BUY",
+		2: "ORDER_SIDE_SELL",
+	}
+	OrderSide_value = map[string]int32{
+		"ORDER_SIDE_UNSPECIFIED": 0,
+		"ORDER_SIDE_BUY":         1,
+		"ORDER_SIDE_SELL":        2,
+	}
+)
+
+func (x OrderSide) Enum() *OrderSide {
+	p := new(OrderSide)
+	*p = x
+	return p
+}
+
+func (x OrderSide) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (OrderSide) Descriptor() protoreflect.EnumDescriptor {
+	return file_order_v1_order_proto_enumTypes[1].Descriptor()
+}
+
+func (OrderSide) Type() protoreflect.EnumType {
+	return &file_order_v1_order_proto_enumTypes[1]
+}
+
+func (x OrderSide) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use OrderSide.Descriptor instead.
+func (OrderSide) EnumDescriptor() ([]byte, []int) {
+	return file_order_v1_order_proto_rawDescGZIP(), []int{1}
+}
+
 type Order struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrderId       string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	CustomerId    string                 `protobuf:"bytes,2,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
-	Symbol        string                 `protobuf:"bytes,3,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	Quantity      int32                  `protobuf:"varint,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	Price         float64                `protobuf:"fixed64,5,opt,name=price,proto3" json:"price,omitempty"`
-	Status        OrderStatus            `protobuf:"varint,6,opt,name=status,proto3,enum=order.v1.OrderStatus" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	OrderId    string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	CustomerId string                 `protobuf:"bytes,2,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
+	Symbol     string                 `protobuf:"bytes,3,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Price is stored in cents. Example: 450.44 -> 45044.
+	PriceCents int64 `protobuf:"varint,4,opt,name=price_cents,json=priceCents,proto3" json:"price_cents,omitempty"`
+	// Quantity is stored with scale 100. Example: 2.25 -> 225.
+	QuantityUnits          int64                  `protobuf:"varint,5,opt,name=quantity_units,json=quantityUnits,proto3" json:"quantity_units,omitempty"`
+	Status                 OrderStatus            `protobuf:"varint,6,opt,name=status,proto3,enum=order.v1.OrderStatus" json:"status,omitempty"`
+	Side                   OrderSide              `protobuf:"varint,7,opt,name=side,proto3,enum=order.v1.OrderSide" json:"side,omitempty"`
+	RemainingQuantityUnits int64                  `protobuf:"varint,8,opt,name=remaining_quantity_units,json=remainingQuantityUnits,proto3" json:"remaining_quantity_units,omitempty"`
+	IdempotencyKey         *string                `protobuf:"bytes,9,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	CanceledAt             *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=canceled_at,json=canceledAt,proto3" json:"canceled_at,omitempty"`
+	CreatedAt              *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt              *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Order) Reset() {
@@ -133,16 +194,16 @@ func (x *Order) GetSymbol() string {
 	return ""
 }
 
-func (x *Order) GetQuantity() int32 {
+func (x *Order) GetPriceCents() int64 {
 	if x != nil {
-		return x.Quantity
+		return x.PriceCents
 	}
 	return 0
 }
 
-func (x *Order) GetPrice() float64 {
+func (x *Order) GetQuantityUnits() int64 {
 	if x != nil {
-		return x.Price
+		return x.QuantityUnits
 	}
 	return 0
 }
@@ -151,17 +212,61 @@ func (x *Order) GetStatus() OrderStatus {
 	if x != nil {
 		return x.Status
 	}
-	return OrderStatus_PENDING
+	return OrderStatus_ORDER_STATUS_UNSPECIFIED
+}
+
+func (x *Order) GetSide() OrderSide {
+	if x != nil {
+		return x.Side
+	}
+	return OrderSide_ORDER_SIDE_UNSPECIFIED
+}
+
+func (x *Order) GetRemainingQuantityUnits() int64 {
+	if x != nil {
+		return x.RemainingQuantityUnits
+	}
+	return 0
+}
+
+func (x *Order) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *Order) GetCanceledAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CanceledAt
+	}
+	return nil
+}
+
+func (x *Order) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Order) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
 }
 
 type CreateOrderRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CustomerId    string                 `protobuf:"bytes,1,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
-	Symbol        string                 `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	Quantity      int32                  `protobuf:"varint,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	Price         float64                `protobuf:"fixed64,4,opt,name=price,proto3" json:"price,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CustomerId     string                 `protobuf:"bytes,1,opt,name=customer_id,json=customerId,proto3" json:"customer_id,omitempty"`
+	Symbol         string                 `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	PriceCents     int64                  `protobuf:"varint,3,opt,name=price_cents,json=priceCents,proto3" json:"price_cents,omitempty"`
+	QuantityUnits  int64                  `protobuf:"varint,4,opt,name=quantity_units,json=quantityUnits,proto3" json:"quantity_units,omitempty"`
+	Side           OrderSide              `protobuf:"varint,5,opt,name=side,proto3,enum=order.v1.OrderSide" json:"side,omitempty"`
+	IdempotencyKey *string                `protobuf:"bytes,6,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateOrderRequest) Reset() {
@@ -208,18 +313,32 @@ func (x *CreateOrderRequest) GetSymbol() string {
 	return ""
 }
 
-func (x *CreateOrderRequest) GetQuantity() int32 {
+func (x *CreateOrderRequest) GetPriceCents() int64 {
 	if x != nil {
-		return x.Quantity
+		return x.PriceCents
 	}
 	return 0
 }
 
-func (x *CreateOrderRequest) GetPrice() float64 {
+func (x *CreateOrderRequest) GetQuantityUnits() int64 {
 	if x != nil {
-		return x.Price
+		return x.QuantityUnits
 	}
 	return 0
+}
+
+func (x *CreateOrderRequest) GetSide() OrderSide {
+	if x != nil {
+		return x.Side
+	}
+	return OrderSide_ORDER_SIDE_UNSPECIFIED
+}
+
+func (x *CreateOrderRequest) GetIdempotencyKey() string {
+	if x != nil && x.IdempotencyKey != nil {
+		return *x.IdempotencyKey
+	}
+	return ""
 }
 
 type CreateOrderResponse struct {
@@ -462,21 +581,37 @@ var File_order_v1_order_proto protoreflect.FileDescriptor
 
 const file_order_v1_order_proto_rawDesc = "" +
 	"\n" +
-	"\x14order/v1/order.proto\x12\border.v1\"\xbc\x01\n" +
+	"\x14order/v1/order.proto\x12\border.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xaa\x04\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\tR\aorderId\x12\x1f\n" +
 	"\vcustomer_id\x18\x02 \x01(\tR\n" +
 	"customerId\x12\x16\n" +
-	"\x06symbol\x18\x03 \x01(\tR\x06symbol\x12\x1a\n" +
-	"\bquantity\x18\x04 \x01(\x05R\bquantity\x12\x14\n" +
-	"\x05price\x18\x05 \x01(\x01R\x05price\x12-\n" +
-	"\x06status\x18\x06 \x01(\x0e2\x15.order.v1.OrderStatusR\x06status\"\x7f\n" +
+	"\x06symbol\x18\x03 \x01(\tR\x06symbol\x12\x1f\n" +
+	"\vprice_cents\x18\x04 \x01(\x03R\n" +
+	"priceCents\x12%\n" +
+	"\x0equantity_units\x18\x05 \x01(\x03R\rquantityUnits\x12-\n" +
+	"\x06status\x18\x06 \x01(\x0e2\x15.order.v1.OrderStatusR\x06status\x12'\n" +
+	"\x04side\x18\a \x01(\x0e2\x13.order.v1.OrderSideR\x04side\x128\n" +
+	"\x18remaining_quantity_units\x18\b \x01(\x03R\x16remainingQuantityUnits\x12,\n" +
+	"\x0fidempotency_key\x18\t \x01(\tH\x00R\x0eidempotencyKey\x88\x01\x01\x12;\n" +
+	"\vcanceled_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"canceledAt\x129\n" +
+	"\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x12\n" +
+	"\x10_idempotency_key\"\x80\x02\n" +
 	"\x12CreateOrderRequest\x12\x1f\n" +
 	"\vcustomer_id\x18\x01 \x01(\tR\n" +
 	"customerId\x12\x16\n" +
-	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12\x1a\n" +
-	"\bquantity\x18\x03 \x01(\x05R\bquantity\x12\x14\n" +
-	"\x05price\x18\x04 \x01(\x01R\x05price\"<\n" +
+	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12\x1f\n" +
+	"\vprice_cents\x18\x03 \x01(\x03R\n" +
+	"priceCents\x12%\n" +
+	"\x0equantity_units\x18\x04 \x01(\x03R\rquantityUnits\x12'\n" +
+	"\x04side\x18\x05 \x01(\x0e2\x13.order.v1.OrderSideR\x04side\x12,\n" +
+	"\x0fidempotency_key\x18\x06 \x01(\tH\x00R\x0eidempotencyKey\x88\x01\x01B\x12\n" +
+	"\x10_idempotency_key\"<\n" +
 	"\x13CreateOrderResponse\x12%\n" +
 	"\x05order\x18\x01 \x01(\v2\x0f.order.v1.OrderR\x05order\",\n" +
 	"\x0fGetOrderRequest\x12\x19\n" +
@@ -489,12 +624,16 @@ const file_order_v1_order_proto_rawDesc = "" +
 	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"=\n" +
 	"\x12ListOrdersResponse\x12'\n" +
-	"\x06orders\x18\x01 \x03(\v2\x0f.order.v1.OrderR\x06orders*4\n" +
-	"\vOrderStatus\x12\v\n" +
-	"\aPENDING\x10\x00\x12\n" +
-	"\n" +
-	"\x06FILLED\x10\x01\x12\f\n" +
-	"\bCANCELED\x10\x022\xea\x01\n" +
+	"\x06orders\x18\x01 \x03(\v2\x0f.order.v1.OrderR\x06orders*y\n" +
+	"\vOrderStatus\x12\x1c\n" +
+	"\x18ORDER_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14ORDER_STATUS_PENDING\x10\x01\x12\x17\n" +
+	"\x13ORDER_STATUS_FILLED\x10\x02\x12\x19\n" +
+	"\x15ORDER_STATUS_CANCELED\x10\x03*P\n" +
+	"\tOrderSide\x12\x1a\n" +
+	"\x16ORDER_SIDE_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eORDER_SIDE_BUY\x10\x01\x12\x13\n" +
+	"\x0fORDER_SIDE_SELL\x10\x022\xea\x01\n" +
 	"\fOrderService\x12J\n" +
 	"\vCreateOrder\x12\x1c.order.v1.CreateOrderRequest\x1a\x1d.order.v1.CreateOrderResponse\x12E\n" +
 	"\fGetOrderByID\x12\x19.order.v1.GetOrderRequest\x1a\x1a.order.v1.GetOrderResponse\x12G\n" +
@@ -513,34 +652,41 @@ func file_order_v1_order_proto_rawDescGZIP() []byte {
 	return file_order_v1_order_proto_rawDescData
 }
 
-var file_order_v1_order_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_order_v1_order_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_order_v1_order_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_order_v1_order_proto_goTypes = []any{
-	(OrderStatus)(0),            // 0: order.v1.OrderStatus
-	(*Order)(nil),               // 1: order.v1.Order
-	(*CreateOrderRequest)(nil),  // 2: order.v1.CreateOrderRequest
-	(*CreateOrderResponse)(nil), // 3: order.v1.CreateOrderResponse
-	(*GetOrderRequest)(nil),     // 4: order.v1.GetOrderRequest
-	(*GetOrderResponse)(nil),    // 5: order.v1.GetOrderResponse
-	(*ListOrdersRequest)(nil),   // 6: order.v1.ListOrdersRequest
-	(*ListOrdersResponse)(nil),  // 7: order.v1.ListOrdersResponse
+	(OrderStatus)(0),              // 0: order.v1.OrderStatus
+	(OrderSide)(0),                // 1: order.v1.OrderSide
+	(*Order)(nil),                 // 2: order.v1.Order
+	(*CreateOrderRequest)(nil),    // 3: order.v1.CreateOrderRequest
+	(*CreateOrderResponse)(nil),   // 4: order.v1.CreateOrderResponse
+	(*GetOrderRequest)(nil),       // 5: order.v1.GetOrderRequest
+	(*GetOrderResponse)(nil),      // 6: order.v1.GetOrderResponse
+	(*ListOrdersRequest)(nil),     // 7: order.v1.ListOrdersRequest
+	(*ListOrdersResponse)(nil),    // 8: order.v1.ListOrdersResponse
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
 }
 var file_order_v1_order_proto_depIdxs = []int32{
-	0, // 0: order.v1.Order.status:type_name -> order.v1.OrderStatus
-	1, // 1: order.v1.CreateOrderResponse.order:type_name -> order.v1.Order
-	1, // 2: order.v1.GetOrderResponse.order:type_name -> order.v1.Order
-	1, // 3: order.v1.ListOrdersResponse.orders:type_name -> order.v1.Order
-	2, // 4: order.v1.OrderService.CreateOrder:input_type -> order.v1.CreateOrderRequest
-	4, // 5: order.v1.OrderService.GetOrderByID:input_type -> order.v1.GetOrderRequest
-	6, // 6: order.v1.OrderService.ListOrders:input_type -> order.v1.ListOrdersRequest
-	3, // 7: order.v1.OrderService.CreateOrder:output_type -> order.v1.CreateOrderResponse
-	5, // 8: order.v1.OrderService.GetOrderByID:output_type -> order.v1.GetOrderResponse
-	7, // 9: order.v1.OrderService.ListOrders:output_type -> order.v1.ListOrdersResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: order.v1.Order.status:type_name -> order.v1.OrderStatus
+	1,  // 1: order.v1.Order.side:type_name -> order.v1.OrderSide
+	9,  // 2: order.v1.Order.canceled_at:type_name -> google.protobuf.Timestamp
+	9,  // 3: order.v1.Order.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 4: order.v1.Order.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 5: order.v1.CreateOrderRequest.side:type_name -> order.v1.OrderSide
+	2,  // 6: order.v1.CreateOrderResponse.order:type_name -> order.v1.Order
+	2,  // 7: order.v1.GetOrderResponse.order:type_name -> order.v1.Order
+	2,  // 8: order.v1.ListOrdersResponse.orders:type_name -> order.v1.Order
+	3,  // 9: order.v1.OrderService.CreateOrder:input_type -> order.v1.CreateOrderRequest
+	5,  // 10: order.v1.OrderService.GetOrderByID:input_type -> order.v1.GetOrderRequest
+	7,  // 11: order.v1.OrderService.ListOrders:input_type -> order.v1.ListOrdersRequest
+	4,  // 12: order.v1.OrderService.CreateOrder:output_type -> order.v1.CreateOrderResponse
+	6,  // 13: order.v1.OrderService.GetOrderByID:output_type -> order.v1.GetOrderResponse
+	8,  // 14: order.v1.OrderService.ListOrders:output_type -> order.v1.ListOrdersResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_order_v1_order_proto_init() }
@@ -548,12 +694,14 @@ func file_order_v1_order_proto_init() {
 	if File_order_v1_order_proto != nil {
 		return
 	}
+	file_order_v1_order_proto_msgTypes[0].OneofWrappers = []any{}
+	file_order_v1_order_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_order_v1_order_proto_rawDesc), len(file_order_v1_order_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,

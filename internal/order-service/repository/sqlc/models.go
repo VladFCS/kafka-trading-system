@@ -9,18 +9,18 @@ import (
 )
 
 type Order struct {
-	OrderID           string             `json:"order_id"`
-	CustomerID        string             `json:"customer_id"`
-	Symbol            string             `json:"symbol"`
-	Side              string             `json:"side"`
-	Price             pgtype.Numeric     `json:"price"`
-	Quantity          pgtype.Numeric     `json:"quantity"`
-	RemainingQuantity pgtype.Numeric     `json:"remaining_quantity"`
-	Status            string             `json:"status"`
-	IdempotencyKey    pgtype.Text        `json:"idempotency_key"`
-	CanceledAt        pgtype.Timestamptz `json:"canceled_at"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	OrderID                string             `json:"order_id"`
+	CustomerID             string             `json:"customer_id"`
+	Symbol                 string             `json:"symbol"`
+	Side                   string             `json:"side"`
+	PriceCents             int64              `json:"price_cents"`
+	QuantityUnits          int64              `json:"quantity_units"`
+	RemainingQuantityUnits int64              `json:"remaining_quantity_units"`
+	Status                 string             `json:"status"`
+	IdempotencyKey         pgtype.Text        `json:"idempotency_key"`
+	CanceledAt             pgtype.Timestamptz `json:"canceled_at"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OrderOutbox struct {

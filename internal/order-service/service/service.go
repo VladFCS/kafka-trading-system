@@ -6,8 +6,6 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/vladfc/kafka-trading-system/internal/order-service/domain"
 	"github.com/vladfc/kafka-trading-system/internal/order-service/repository"
 )
@@ -45,7 +43,7 @@ func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
 	if order.Side != domain.OrderSideBuy && order.Side != domain.OrderSideSell {
 		return domain.Order{}, domain.ErrInvalidOrder
 	}
-	if !isPositiveNumeric(order.Price) || !isPositiveNumeric(order.Quantity) {
+	if order.PriceCents <= 0 || order.QuantityUnits <= 0 {
 		return domain.Order{}, domain.ErrInvalidOrder
 	}
 
@@ -68,23 +66,15 @@ func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
 		return domain.Order{}, domain.ErrInvalidOrder
 	}
 
-	if !order.RemainingQuantity.Valid {
-		order.RemainingQuantity = order.Quantity
+	if order.RemainingQuantityUnits == 0 {
+		order.RemainingQuantityUnits = order.QuantityUnits
 	}
 
-	if !isPositiveNumeric(order.RemainingQuantity) {
+	if order.RemainingQuantityUnits <= 0 {
 		return domain.Order{}, domain.ErrInvalidOrder
 	}
 
-	remainingFloat, err := numericToFloat64(order.RemainingQuantity)
-	if err != nil {
-		return domain.Order{}, domain.ErrInvalidOrder
-	}
-	quantityFloat, err := numericToFloat64(order.Quantity)
-	if err != nil {
-		return domain.Order{}, domain.ErrInvalidOrder
-	}
-	if remainingFloat > quantityFloat {
+	if order.RemainingQuantityUnits > order.QuantityUnits {
 		return domain.Order{}, domain.ErrInvalidOrder
 	}
 
@@ -95,25 +85,6 @@ func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
 	order.UpdatedAt = now
 
 	return order, nil
-}
-
-func isPositiveNumeric(value pgtype.Numeric) bool {
-	floatValue, err := value.Float64Value()
-	if err != nil || !floatValue.Valid {
-		return false
-	}
-	return floatValue.Float64 > 0
-}
-
-func numericToFloat64(value pgtype.Numeric) (float64, error) {
-	floatValue, err := value.Float64Value()
-	if err != nil {
-		return 0, err
-	}
-	if !floatValue.Valid {
-		return 0, domain.ErrInvalidOrder
-	}
-	return floatValue.Float64, nil
 }
 
 func newOrderID() (string, error) {
