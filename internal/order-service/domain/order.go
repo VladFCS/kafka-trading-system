@@ -1,22 +1,43 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
-	orderv1 "github.com/vladfc/kafka-trading-system/gen/order/v1"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
-	ErrOrderNotFound = "order not found"
-	ErrInvalidOrder = "invalid order"
+	ErrOrderNotFound = errors.New("order not found")
+	ErrInvalidOrder = errors.New("invalid order")
+)
+
+type OrderSide string
+
+const (
+	OrderSideBuy  OrderSide = "BUY"
+	OrderSideSell OrderSide = "SELL"
+)
+
+type OrderStatus string
+
+const (
+	OrderStatusPending         OrderStatus = "PENDING"
+	OrderStatusFilled          OrderStatus = "FILLED"
+	OrderStatusCanceled        OrderStatus = "CANCELED"
 )
 
 type Order struct {
-	ID        string    `json:"id"`
-	CustomerID string    `json:"customer_id"`
-	Symbol 	string    `json:"symbol"`
-	Quantity   int32     `json:"quantity"`
-	Price      float64   `json:"price"`
-	Status     orderv1.OrderStatus `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID                string             `json:"id"`
+	CustomerID        string             `json:"customer_id"`
+	Symbol            string             `json:"symbol"`
+	Side              OrderSide          `json:"side"`
+	Price             pgtype.Numeric     `json:"price"`
+	Quantity          pgtype.Numeric     `json:"quantity"`
+	RemainingQuantity pgtype.Numeric     `json:"remaining_quantity"`
+	Status            OrderStatus        `json:"status"`
+	IdempotencyKey    string             `json:"idempotency_key,omitempty"`
+	CanceledAt        *time.Time         `json:"canceled_at,omitempty"`
+	CreatedAt         time.Time          `json:"created_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
 }
