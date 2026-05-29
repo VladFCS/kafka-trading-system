@@ -6,8 +6,19 @@ import (
 )
 
 var (
-	ErrOrderNotFound = errors.New("order not found")
-	ErrInvalidOrder  = errors.New("invalid order")
+	ErrOrderNotFound                    = errors.New("order not found")
+	ErrInvalidOrder                     = errors.New("invalid order")
+	ErrMissingCustomerID                = errors.New("missing customer id")
+	ErrMissingSymbol                    = errors.New("missing symbol")
+	ErrInvalidOrderSide                 = errors.New("invalid order side")
+	ErrInvalidPriceCents                = errors.New("invalid price cents")
+	ErrInvalidQuantityUnits             = errors.New("invalid quantity units")
+	ErrInvalidRemainingQuantityUnits    = errors.New("invalid remaining quantity units")
+	ErrRemainingQuantityExceedsQuantity = errors.New("remaining quantity exceeds quantity")
+	ErrMissingOrderID                   = errors.New("missing order id")
+	ErrMissingOrderStatus               = errors.New("missing order status")
+	ErrInvalidOrderStatus               = errors.New("invalid order status")
+	ErrCanceledOrderOnCreate            = errors.New("canceled order cannot be created")
 )
 
 type OrderSide string
