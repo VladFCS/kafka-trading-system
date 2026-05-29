@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS orders (
     price NUMERIC(20,8) NOT NULL CHECK (price > 0),
     quantity NUMERIC(20,8) NOT NULL CHECK (quantity > 0),
     remaining_quantity NUMERIC(20,8) NOT NULL CHECK (remaining_quantity >= 0 AND remaining_quantity <= quantity),
-    status TEXT NOT NULL CHECK (status IN ('PENDING', 'PARTIALLY_FILLED', 'FILLED', 'CANCELED')),
+    status TEXT NOT NULL CHECK (status IN ('PENDING', 'FILLED', 'CANCELED')),
     idempotency_key TEXT,
     canceled_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
