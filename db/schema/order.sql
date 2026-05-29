@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS orders (
-    id TEXT PRIMARY KEY,
+    order_id TEXT PRIMARY KEY,
     customer_id TEXT NOT NULL,
     symbol TEXT NOT NULL,
     side TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),

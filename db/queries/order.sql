@@ -1,6 +1,6 @@
 -- name: CreateOrder :one
 INSERT INTO orders (
-  id,
+  order_id,
   customer_id,
   symbol,
   side,
@@ -13,7 +13,7 @@ INSERT INTO orders (
   created_at,
   updated_at
 ) VALUES (
-  sqlc.arg(id),
+  sqlc.arg(order_id),
   sqlc.arg(customer_id),
   sqlc.arg(symbol),
   sqlc.arg(side),
@@ -31,7 +31,7 @@ RETURNING *;
 -- name: GetOrderByID :one
 SELECT *
 FROM orders
-WHERE id = $1;
+WHERE order_id = $1;
 
 -- name: GetListOrdersByCustomerID :many
 SELECT *
@@ -44,4 +44,4 @@ LIMIT $2 OFFSET $3;
 UPDATE orders
 SET status = $2,
     updated_at = NOW()
-WHERE id = $1;
+WHERE order_id = $1;

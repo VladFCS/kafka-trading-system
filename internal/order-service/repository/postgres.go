@@ -72,7 +72,7 @@ func validateOrder(order *domain.Order) error {
 	if !isPositiveNumeric(order.Price) || !isPositiveNumeric(order.Quantity) {
 		return domain.ErrInvalidOrder
 	}
-	if order.ID == "" {
+	if order.OrderID == "" {
 		return domain.ErrInvalidOrder
 	}
 	if order.Status == "" {
@@ -98,7 +98,7 @@ func toCreateOrderParams(order *domain.Order) orderdb.CreateOrderParams {
 	}
 
 	return orderdb.CreateOrderParams{
-		ID:             order.ID,
+		OrderID:        order.OrderID,
 		CustomerID:     order.CustomerID,
 		Symbol:         order.Symbol,
 		Side:           string(order.Side),
@@ -132,7 +132,7 @@ func mapDBOrder(order orderdb.Order) (domain.Order, error) {
 	}
 
 	return domain.Order{
-		ID:                order.ID,
+		OrderID:           order.OrderID,
 		CustomerID:        order.CustomerID,
 		Symbol:            order.Symbol,
 		Side:              domain.OrderSide(order.Side),

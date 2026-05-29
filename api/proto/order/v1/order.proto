@@ -17,7 +17,7 @@ enum OrderStatus {
 }
 
 message Order {
-  string id = 1;
+  string order_id = 1;
   string customer_id = 2;
   string symbol = 3;
   int32 quantity = 4;
@@ -37,7 +37,7 @@ message CreateOrderResponse {
 }
 
 message GetOrderRequest {
-  string id = 1;
+  string order_id = 1;
 }
 
 message GetOrderResponse {
@@ -53,5 +53,4 @@ message ListOrdersRequest {
 message ListOrdersResponse {
   repeated Order orders = 1;
 }
-
 

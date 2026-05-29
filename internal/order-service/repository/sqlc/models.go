@@ -9,7 +9,7 @@ import (
 )
 
 type Order struct {
-	ID                string             `json:"id"`
+	OrderID           string             `json:"order_id"`
 	CustomerID        string             `json:"customer_id"`
 	Symbol            string             `json:"symbol"`
 	Side              string             `json:"side"`

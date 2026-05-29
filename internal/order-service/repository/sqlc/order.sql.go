@@ -13,7 +13,7 @@ import (
 
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
-  id,
+  order_id,
   customer_id,
   symbol,
   side,
@@ -39,11 +39,11 @@ INSERT INTO orders (
   COALESCE($10, NOW()),
   NOW()
 )
-RETURNING id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
+RETURNING order_id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
 `
 
 type CreateOrderParams struct {
-	ID             string             `json:"id"`
+	OrderID        string             `json:"order_id"`
 	CustomerID     string             `json:"customer_id"`
 	Symbol         string             `json:"symbol"`
 	Side           string             `json:"side"`
@@ -57,7 +57,7 @@ type CreateOrderParams struct {
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error) {
 	row := q.db.QueryRow(ctx, createOrder,
-		arg.ID,
+		arg.OrderID,
 		arg.CustomerID,
 		arg.Symbol,
 		arg.Side,
@@ -70,7 +70,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 	)
 	var i Order
 	err := row.Scan(
-		&i.ID,
+		&i.OrderID,
 		&i.CustomerID,
 		&i.Symbol,
 		&i.Side,
@@ -87,7 +87,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 }
 
 const getListOrdersByCustomerID = `-- name: GetListOrdersByCustomerID :many
-SELECT id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
+SELECT order_id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
 FROM orders
 WHERE customer_id = $1
 ORDER BY created_at DESC
@@ -110,7 +110,7 @@ func (q *Queries) GetListOrdersByCustomerID(ctx context.Context, arg GetListOrde
 	for rows.Next() {
 		var i Order
 		if err := rows.Scan(
-			&i.ID,
+			&i.OrderID,
 			&i.CustomerID,
 			&i.Symbol,
 			&i.Side,
@@ -134,16 +134,16 @@ func (q *Queries) GetListOrdersByCustomerID(ctx context.Context, arg GetListOrde
 }
 
 const getOrderByID = `-- name: GetOrderByID :one
-SELECT id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
+SELECT order_id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
 FROM orders
-WHERE id = $1
+WHERE order_id = $1
 `
 
-func (q *Queries) GetOrderByID(ctx context.Context, id string) (Order, error) {
-	row := q.db.QueryRow(ctx, getOrderByID, id)
+func (q *Queries) GetOrderByID(ctx context.Context, orderID string) (Order, error) {
+	row := q.db.QueryRow(ctx, getOrderByID, orderID)
 	var i Order
 	err := row.Scan(
-		&i.ID,
+		&i.OrderID,
 		&i.CustomerID,
 		&i.Symbol,
 		&i.Side,
@@ -163,15 +163,15 @@ const updateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE orders
 SET status = $2,
     updated_at = NOW()
-WHERE id = $1
+WHERE order_id = $1
 `
 
 type UpdateOrderStatusParams struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	OrderID string `json:"order_id"`
+	Status  string `json:"status"`
 }
 
 func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error {
-	_, err := q.db.Exec(ctx, updateOrderStatus, arg.ID, arg.Status)
+	_, err := q.db.Exec(ctx, updateOrderStatus, arg.OrderID, arg.Status)
 	return err
 }
