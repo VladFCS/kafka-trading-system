@@ -27,13 +27,29 @@ func (r *PostgresRepository) CreateOrder(ctx context.Context, order *domain.Orde
 	if err := validateOrder(order); err != nil {
 		return domain.Order{}, err
 	}
-	row, err := r.queries.CreateOrder(ctx, toCreateOrderParams(order))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return domain.Order{}, err
+	}
+
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	qtx := r.queries.WithTx(tx)
+
+	row, err := qtx.CreateOrder(ctx, toCreateOrderParams(order))
 	if err != nil {
 		return domain.Order{}, err
 	}
 
 	mappedOrder, err := mapDBOrder(row)
 	if err != nil {
+		return domain.Order{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
 		return domain.Order{}, err
 	}
 
