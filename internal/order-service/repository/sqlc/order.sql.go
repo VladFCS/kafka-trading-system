@@ -17,9 +17,9 @@ INSERT INTO orders (
   customer_id,
   symbol,
   side,
-  price,
-  quantity,
-  remaining_quantity,
+  price_cents,
+  quantity_units,
+  remaining_quantity_units,
   status,
   idempotency_key,
   canceled_at,
@@ -39,7 +39,7 @@ INSERT INTO orders (
   COALESCE($10, NOW()),
   NOW()
 )
-RETURNING order_id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
+RETURNING order_id, customer_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
 `
 
 type CreateOrderParams struct {
@@ -47,8 +47,8 @@ type CreateOrderParams struct {
 	CustomerID     string             `json:"customer_id"`
 	Symbol         string             `json:"symbol"`
 	Side           string             `json:"side"`
-	Price          pgtype.Numeric     `json:"price"`
-	Quantity       pgtype.Numeric     `json:"quantity"`
+	PriceCents     int64              `json:"price_cents"`
+	QuantityUnits  int64              `json:"quantity_units"`
 	Status         string             `json:"status"`
 	IdempotencyKey pgtype.Text        `json:"idempotency_key"`
 	CanceledAt     pgtype.Timestamptz `json:"canceled_at"`
@@ -61,8 +61,8 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		arg.CustomerID,
 		arg.Symbol,
 		arg.Side,
-		arg.Price,
-		arg.Quantity,
+		arg.PriceCents,
+		arg.QuantityUnits,
 		arg.Status,
 		arg.IdempotencyKey,
 		arg.CanceledAt,
@@ -74,9 +74,9 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.CustomerID,
 		&i.Symbol,
 		&i.Side,
-		&i.Price,
-		&i.Quantity,
-		&i.RemainingQuantity,
+		&i.PriceCents,
+		&i.QuantityUnits,
+		&i.RemainingQuantityUnits,
 		&i.Status,
 		&i.IdempotencyKey,
 		&i.CanceledAt,
@@ -87,7 +87,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 }
 
 const getListOrdersByCustomerID = `-- name: GetListOrdersByCustomerID :many
-SELECT order_id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
+SELECT order_id, customer_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
 FROM orders
 WHERE customer_id = $1
 ORDER BY created_at DESC
@@ -114,9 +114,9 @@ func (q *Queries) GetListOrdersByCustomerID(ctx context.Context, arg GetListOrde
 			&i.CustomerID,
 			&i.Symbol,
 			&i.Side,
-			&i.Price,
-			&i.Quantity,
-			&i.RemainingQuantity,
+			&i.PriceCents,
+			&i.QuantityUnits,
+			&i.RemainingQuantityUnits,
 			&i.Status,
 			&i.IdempotencyKey,
 			&i.CanceledAt,
@@ -134,7 +134,7 @@ func (q *Queries) GetListOrdersByCustomerID(ctx context.Context, arg GetListOrde
 }
 
 const getOrderByID = `-- name: GetOrderByID :one
-SELECT order_id, customer_id, symbol, side, price, quantity, remaining_quantity, status, idempotency_key, canceled_at, created_at, updated_at
+SELECT order_id, customer_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
 FROM orders
 WHERE order_id = $1
 `
@@ -147,9 +147,9 @@ func (q *Queries) GetOrderByID(ctx context.Context, orderID string) (Order, erro
 		&i.CustomerID,
 		&i.Symbol,
 		&i.Side,
-		&i.Price,
-		&i.Quantity,
-		&i.RemainingQuantity,
+		&i.PriceCents,
+		&i.QuantityUnits,
+		&i.RemainingQuantityUnits,
 		&i.Status,
 		&i.IdempotencyKey,
 		&i.CanceledAt,

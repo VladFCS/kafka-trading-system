@@ -23,7 +23,7 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 	}
 }
 
-func (r *PostgresRepository) CreateOrder(ctx context.Context, order *domain.Order) (domain.Order, error) {
+func (r *PostgresRepository) CreateOrder(ctx context.Context, order domain.Order) (domain.Order, error) {
 	if err := validateOrder(order); err != nil {
 		return domain.Order{}, err
 	}
@@ -56,10 +56,7 @@ func (r *PostgresRepository) CreateOrder(ctx context.Context, order *domain.Orde
 	return mappedOrder, nil
 }
 
-func validateOrder(order *domain.Order) error {
-	if order == nil {
-		return domain.ErrInvalidOrder
-	}
+func validateOrder(order domain.Order) error {
 	if order.CustomerID == "" {
 		return domain.ErrInvalidOrder
 	}
@@ -69,7 +66,10 @@ func validateOrder(order *domain.Order) error {
 	if order.Side != domain.OrderSideBuy && order.Side != domain.OrderSideSell {
 		return domain.ErrInvalidOrder
 	}
-	if !isPositiveNumeric(order.Price) || !isPositiveNumeric(order.Quantity) {
+	if order.PriceCents <= 0 || order.QuantityUnits <= 0 {
+		return domain.ErrInvalidOrder
+	}
+	if order.RemainingQuantityUnits < 0 || order.RemainingQuantityUnits > order.QuantityUnits {
 		return domain.ErrInvalidOrder
 	}
 	if order.OrderID == "" {
@@ -81,7 +81,7 @@ func validateOrder(order *domain.Order) error {
 	return nil
 }
 
-func toCreateOrderParams(order *domain.Order) orderdb.CreateOrderParams {
+func toCreateOrderParams(order domain.Order) orderdb.CreateOrderParams {
 	idempotencyKey := pgtype.Text{}
 	if order.IdempotencyKey != "" {
 		idempotencyKey = pgtype.Text{String: order.IdempotencyKey, Valid: true}
@@ -102,8 +102,8 @@ func toCreateOrderParams(order *domain.Order) orderdb.CreateOrderParams {
 		CustomerID:     order.CustomerID,
 		Symbol:         order.Symbol,
 		Side:           string(order.Side),
-		Price:          order.Price,
-		Quantity:       order.Quantity,
+		PriceCents:     order.PriceCents,
+		QuantityUnits:  order.QuantityUnits,
 		Status:         string(order.Status),
 		IdempotencyKey: idempotencyKey,
 		CanceledAt:     canceledAt,
@@ -132,18 +132,18 @@ func mapDBOrder(order orderdb.Order) (domain.Order, error) {
 	}
 
 	return domain.Order{
-		OrderID:           order.OrderID,
-		CustomerID:        order.CustomerID,
-		Symbol:            order.Symbol,
-		Side:              domain.OrderSide(order.Side),
-		Price:             order.Price,
-		Quantity:          order.Quantity,
-		RemainingQuantity: order.RemainingQuantity,
-		Status:            domain.OrderStatus(order.Status),
-		IdempotencyKey:    order.IdempotencyKey.String,
-		CanceledAt:        canceledAt,
-		CreatedAt:         createdAt,
-		UpdatedAt:         updatedAt,
+		OrderID:                order.OrderID,
+		CustomerID:             order.CustomerID,
+		Symbol:                 order.Symbol,
+		Side:                   domain.OrderSide(order.Side),
+		PriceCents:             order.PriceCents,
+		QuantityUnits:          order.QuantityUnits,
+		RemainingQuantityUnits: order.RemainingQuantityUnits,
+		Status:                 domain.OrderStatus(order.Status),
+		IdempotencyKey:         order.IdempotencyKey.String,
+		CanceledAt:             canceledAt,
+		CreatedAt:              createdAt,
+		UpdatedAt:              updatedAt,
 	}, nil
 }
 
@@ -155,12 +155,4 @@ func timestamptzToTime(value pgtype.Timestamptz) (time.Time, error) {
 		return time.Time{}, errors.New("invalid timestamptz infinity value")
 	}
 	return value.Time, nil
-}
-
-func isPositiveNumeric(value pgtype.Numeric) bool {
-	floatValue, err := value.Float64Value()
-	if err != nil || !floatValue.Valid {
-		return false
-	}
-	return floatValue.Float64 > 0
 }
