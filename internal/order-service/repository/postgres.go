@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vladfc/kafka-trading-system/internal/order-service/domain"
@@ -56,27 +57,53 @@ func (r *PostgresRepository) CreateOrder(ctx context.Context, order domain.Order
 	return mappedOrder, nil
 }
 
+func (r *PostgresRepository) GetOrderByID(ctx context.Context, orderID string) (domain.Order, error) {
+	if orderID == "" {
+		return domain.Order{}, domain.ErrMissingOrderID
+	}
+	row, err := r.queries.GetOrderByID(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Order{}, domain.ErrOrderNotFound
+	}
+	if err != nil {
+		return domain.Order{}, err
+	}
+
+	mappedOrder, err := mapDBOrder(row)
+	if err != nil {
+		return domain.Order{}, err
+	}
+
+	return mappedOrder, nil
+}
+
 func validateOrder(order domain.Order) error {
 	if order.CustomerID == "" {
-		return domain.ErrInvalidOrder
+		return domain.ErrMissingCustomerID
 	}
 	if order.Symbol == "" {
-		return domain.ErrInvalidOrder
+		return domain.ErrMissingSymbol
 	}
 	if order.Side != domain.OrderSideBuy && order.Side != domain.OrderSideSell {
-		return domain.ErrInvalidOrder
+		return domain.ErrInvalidOrderSide
 	}
-	if order.PriceCents <= 0 || order.QuantityUnits <= 0 {
-		return domain.ErrInvalidOrder
+	if order.PriceCents <= 0 {
+		return domain.ErrInvalidPriceCents
 	}
-	if order.RemainingQuantityUnits < 0 || order.RemainingQuantityUnits > order.QuantityUnits {
-		return domain.ErrInvalidOrder
+	if order.QuantityUnits <= 0 {
+		return domain.ErrInvalidQuantityUnits
+	}
+	if order.RemainingQuantityUnits < 0 {
+		return domain.ErrInvalidRemainingQuantityUnits
+	}
+	if order.RemainingQuantityUnits > order.QuantityUnits {
+		return domain.ErrRemainingQuantityExceedsQuantity
 	}
 	if order.OrderID == "" {
-		return domain.ErrInvalidOrder
+		return domain.ErrMissingOrderID
 	}
 	if order.Status == "" {
-		return domain.ErrInvalidOrder
+		return domain.ErrMissingOrderStatus
 	}
 	return nil
 }

@@ -37,13 +37,21 @@ func (h *GRPCHandler) CreateOrder(ctx context.Context, req *orderv1.CreateOrderR
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		if errors.Is(err, domain.ErrInvalidOrder) {
-			return nil, status.Error(codes.InvalidArgument, "invalid order")
-		}
-		return nil, status.Error(codes.Internal, "create order")
+		return nil, mapOrderError(err)
 	}
 
 	return &orderv1.CreateOrderResponse{
+		Order: mapDomainOrderToProto(order),
+	}, nil
+}
+
+func (h *GRPCHandler) GetOrderByID(ctx context.Context, req *orderv1.GetOrderByIDRequest) (*orderv1.GetOrderByIDResponse, error) {
+	order, err := h.service.GetOrderByID(ctx, req.GetOrderId())
+	if err != nil {
+		return nil, mapOrderError(err)
+	}
+
+	return &orderv1.GetOrderByIDResponse{
 		Order: mapDomainOrderToProto(order),
 	}, nil
 }
@@ -67,6 +75,28 @@ func mapDomainOrderToProto(order domain.Order) *orderv1.Order {
 		CanceledAt:             timeToProto(order.CanceledAt),
 		CreatedAt:              timestamppb.New(order.CreatedAt),
 		UpdatedAt:              timestamppb.New(order.UpdatedAt),
+	}
+}
+
+func mapOrderError(err error) error {
+	switch {
+	case errors.Is(err, domain.ErrOrderNotFound):
+		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, domain.ErrMissingOrderID),
+		errors.Is(err, domain.ErrMissingCustomerID),
+		errors.Is(err, domain.ErrMissingSymbol),
+		errors.Is(err, domain.ErrInvalidOrderSide),
+		errors.Is(err, domain.ErrInvalidPriceCents),
+		errors.Is(err, domain.ErrInvalidQuantityUnits),
+		errors.Is(err, domain.ErrInvalidRemainingQuantityUnits),
+		errors.Is(err, domain.ErrRemainingQuantityExceedsQuantity),
+		errors.Is(err, domain.ErrMissingOrderStatus),
+		errors.Is(err, domain.ErrInvalidOrderStatus),
+		errors.Is(err, domain.ErrCanceledOrderOnCreate),
+		errors.Is(err, domain.ErrInvalidOrder):
+		return status.Error(codes.InvalidArgument, err.Error())
+	default:
+		return status.Error(codes.Internal, "order service error")
 	}
 }
 

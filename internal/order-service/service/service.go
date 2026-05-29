@@ -33,18 +33,33 @@ func (s *OrderService) CreateOrder(ctx context.Context, order domain.Order) (dom
 	return createdOrder, nil
 }
 
+func (s *OrderService) GetOrderByID(ctx context.Context, orderID string) (domain.Order, error) {
+	if orderID == "" {
+		return domain.Order{}, domain.ErrMissingOrderID
+	}
+
+	order, err := s.repository.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return domain.Order{}, err
+	}
+	return order, nil
+}
+
 func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
 	if order.CustomerID == "" {
-		return domain.Order{}, domain.ErrInvalidOrder
+		return domain.Order{}, domain.ErrMissingCustomerID
 	}
 	if order.Symbol == "" {
-		return domain.Order{}, domain.ErrInvalidOrder
+		return domain.Order{}, domain.ErrMissingSymbol
 	}
 	if order.Side != domain.OrderSideBuy && order.Side != domain.OrderSideSell {
-		return domain.Order{}, domain.ErrInvalidOrder
+		return domain.Order{}, domain.ErrInvalidOrderSide
 	}
-	if order.PriceCents <= 0 || order.QuantityUnits <= 0 {
-		return domain.Order{}, domain.ErrInvalidOrder
+	if order.PriceCents <= 0 {
+		return domain.Order{}, domain.ErrInvalidPriceCents
+	}
+	if order.QuantityUnits <= 0 {
+		return domain.Order{}, domain.ErrInvalidQuantityUnits
 	}
 
 	if order.OrderID == "" {
@@ -59,11 +74,11 @@ func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
 		order.Status = domain.OrderStatusPending
 	}
 	if order.Status != domain.OrderStatusPending {
-		return domain.Order{}, domain.ErrInvalidOrder
+		return domain.Order{}, domain.ErrInvalidOrderStatus
 	}
 
 	if order.CanceledAt != nil {
-		return domain.Order{}, domain.ErrInvalidOrder
+		return domain.Order{}, domain.ErrCanceledOrderOnCreate
 	}
 
 	if order.RemainingQuantityUnits == 0 {
@@ -71,11 +86,11 @@ func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
 	}
 
 	if order.RemainingQuantityUnits <= 0 {
-		return domain.Order{}, domain.ErrInvalidOrder
+		return domain.Order{}, domain.ErrInvalidRemainingQuantityUnits
 	}
 
 	if order.RemainingQuantityUnits > order.QuantityUnits {
-		return domain.Order{}, domain.ErrInvalidOrder
+		return domain.Order{}, domain.ErrRemainingQuantityExceedsQuantity
 	}
 
 	now := time.Now().UTC()
