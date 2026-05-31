@@ -159,19 +159,25 @@ func (q *Queries) GetOrderByID(ctx context.Context, orderID string) (Order, erro
 	return i, err
 }
 
-const updateOrderStatus = `-- name: UpdateOrderStatus :exec
+const updateOrderExecution = `-- name: UpdateOrderExecution :execrows
 UPDATE orders
-SET status = $2,
+SET remaining_quantity_units = $1,
+    status = $2,
     updated_at = NOW()
-WHERE order_id = $1
+WHERE order_id = $3
+  AND status = 'PENDING'
 `
 
-type UpdateOrderStatusParams struct {
-	OrderID string `json:"order_id"`
-	Status  string `json:"status"`
+type UpdateOrderExecutionParams struct {
+	RemainingQuantityUnits int64  `json:"remaining_quantity_units"`
+	Status                 string `json:"status"`
+	OrderID                string `json:"order_id"`
 }
 
-func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error {
-	_, err := q.db.Exec(ctx, updateOrderStatus, arg.OrderID, arg.Status)
-	return err
+func (q *Queries) UpdateOrderExecution(ctx context.Context, arg UpdateOrderExecutionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateOrderExecution, arg.RemainingQuantityUnits, arg.Status, arg.OrderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

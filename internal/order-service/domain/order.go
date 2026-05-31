@@ -20,6 +20,7 @@ var (
 	ErrInvalidOrderStatus               = errors.New("invalid order status")
 	ErrCanceledOrderOnCreate            = errors.New("canceled order cannot be created")
 	ErrOrderTerminal                    = errors.New("order is already terminal")
+	ErrOrderUpdateConflict              = errors.New("order update conflict")
 	ErrInvalidFillQuantity              = errors.New("invalid fill quantity")
 	ErrFillQuantityExceedsRemaining     = errors.New("fill quantity exceeds remaining quantity")
 )

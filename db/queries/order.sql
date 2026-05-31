@@ -40,8 +40,10 @@ WHERE customer_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
 
--- name: UpdateOrderStatus :exec
+-- name: UpdateOrderExecution :execrows
 UPDATE orders
-SET status = $2,
+SET remaining_quantity_units = sqlc.arg(remaining_quantity_units),
+    status = sqlc.arg(status),
     updated_at = NOW()
-WHERE order_id = $1;
+WHERE order_id = sqlc.arg(order_id)
+  AND status = 'PENDING';

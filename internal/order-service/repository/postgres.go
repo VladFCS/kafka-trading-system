@@ -77,6 +77,38 @@ func (r *PostgresRepository) GetOrderByID(ctx context.Context, orderID string) (
 	return mappedOrder, nil
 }
 
+func (r *PostgresRepository) UpdateOrderExecution(ctx context.Context, order domain.Order) error {
+	if err := validateOrder(order); err != nil {
+		return err
+	}
+	if order.Status != domain.OrderStatusPending && order.Status != domain.OrderStatusFilled {
+		return domain.ErrInvalidOrderStatus
+	}
+	if order.Status == domain.OrderStatusFilled && order.RemainingQuantityUnits != 0 {
+		return domain.ErrInvalidRemainingQuantityUnits
+	}
+	if order.Status == domain.OrderStatusPending && order.RemainingQuantityUnits == 0 {
+		return domain.ErrInvalidRemainingQuantityUnits
+	}
+
+	rowsAffected, err := r.queries.UpdateOrderExecution(ctx, toUpdateOrderExecutionParams(order))
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		currentOrder, err := r.GetOrderByID(ctx, order.OrderID)
+		if err != nil {
+			return err
+		}
+		if currentOrder.Status != domain.OrderStatusPending {
+			return domain.ErrOrderTerminal
+		}
+
+		return domain.ErrOrderUpdateConflict
+	}
+	return nil
+}
+
 func validateOrder(order domain.Order) error {
 	if order.CustomerID == "" {
 		return domain.ErrMissingCustomerID
@@ -104,6 +136,11 @@ func validateOrder(order domain.Order) error {
 	}
 	if order.Status == "" {
 		return domain.ErrMissingOrderStatus
+	}
+	if order.Status != domain.OrderStatusPending &&
+		order.Status != domain.OrderStatusFilled &&
+		order.Status != domain.OrderStatusCanceled {
+		return domain.ErrInvalidOrderStatus
 	}
 	return nil
 }
@@ -135,6 +172,14 @@ func toCreateOrderParams(order domain.Order) orderdb.CreateOrderParams {
 		IdempotencyKey: idempotencyKey,
 		CanceledAt:     canceledAt,
 		CreatedAt:      createdAt,
+	}
+}
+
+func toUpdateOrderExecutionParams(order domain.Order) orderdb.UpdateOrderExecutionParams {
+	return orderdb.UpdateOrderExecutionParams{
+		OrderID:                order.OrderID,
+		RemainingQuantityUnits: order.RemainingQuantityUnits,
+		Status:                 string(order.Status),
 	}
 }
 
