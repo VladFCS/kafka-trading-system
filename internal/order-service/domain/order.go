@@ -19,6 +19,9 @@ var (
 	ErrMissingOrderStatus               = errors.New("missing order status")
 	ErrInvalidOrderStatus               = errors.New("invalid order status")
 	ErrCanceledOrderOnCreate            = errors.New("canceled order cannot be created")
+	ErrOrderTerminal                    = errors.New("order is already terminal")
+	ErrInvalidFillQuantity              = errors.New("invalid fill quantity")
+	ErrFillQuantityExceedsRemaining     = errors.New("fill quantity exceeds remaining quantity")
 )
 
 type OrderSide string
@@ -49,4 +52,32 @@ type Order struct {
 	CanceledAt             *time.Time  `json:"canceled_at,omitempty"`
 	CreatedAt              time.Time   `json:"created_at"`
 	UpdatedAt              time.Time   `json:"updated_at"`
+}
+
+func (o *Order) ApplyFill(fillQtyUnits int64) error {
+	if o.Status != OrderStatusPending {
+		return ErrOrderTerminal
+	}
+	if fillQtyUnits <= 0 {
+		return ErrInvalidFillQuantity
+	}
+	if fillQtyUnits > o.RemainingQuantityUnits {
+		return ErrFillQuantityExceedsRemaining
+	}
+
+	o.RemainingQuantityUnits -= fillQtyUnits
+	if o.RemainingQuantityUnits == 0 {
+		o.Status = OrderStatusFilled
+	}
+
+	return nil
+}
+
+func (o *Order) Cancel() error {
+	if o.Status != OrderStatusPending {
+		return ErrOrderTerminal
+	}
+
+	o.Status = OrderStatusCanceled
+	return nil
 }
