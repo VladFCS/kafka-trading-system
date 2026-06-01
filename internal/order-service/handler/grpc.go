@@ -49,6 +49,17 @@ func (h *GRPCHandler) GetOrderByID(ctx context.Context, req *orderv1.GetOrderByI
 	}, nil
 }
 
+func (h *GRPCHandler) CancelOrder(ctx context.Context, req *orderv1.CancelOrderRequest) (*orderv1.CancelOrderResponse, error) {
+	canceled, err := h.service.CancelOrder(ctx, req.GetOrderId())
+	if err != nil {
+		return nil, mapOrderError(err)
+	}
+
+	return &orderv1.CancelOrderResponse{
+		Canceled: canceled,
+	}, nil
+}
+
 func mapCreateOrderRequestToDomain(req *orderv1.CreateOrderRequest) domain.Order {
 	return domain.Order{
 		CustomerID:     req.GetCustomerId(),
@@ -86,6 +97,10 @@ func mapOrderError(err error) error {
 	switch {
 	case errors.Is(err, domain.ErrOrderNotFound):
 		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, domain.ErrOrderTerminal):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, domain.ErrOrderUpdateConflict):
+		return status.Error(codes.Aborted, err.Error())
 	case errors.Is(err, domain.ErrMissingOrderID),
 		errors.Is(err, domain.ErrMissingCustomerID),
 		errors.Is(err, domain.ErrMissingSymbol),
