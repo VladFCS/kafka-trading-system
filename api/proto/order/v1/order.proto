@@ -9,6 +9,7 @@ option go_package = "github.com/vladfc/kafka-trading-system/gen/order/v1;orderv1
 service OrderService {
   rpc CreateOrder (CreateOrderRequest) returns (CreateOrderResponse);
   rpc GetOrderByID (GetOrderByIDRequest) returns (GetOrderByIDResponse);
+  rpc CancelOrder (CancelOrderRequest) returns (CancelOrderResponse);
   rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
 }
 
@@ -61,6 +62,14 @@ message GetOrderByIDRequest {
 
 message GetOrderByIDResponse {
   Order order = 1;
+}
+
+message CancelOrderRequest {
+  string order_id = 1;
+}
+
+message CancelOrderResponse {
+  bool canceled = 1;
 }
 
 message ListOrdersRequest {
