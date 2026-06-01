@@ -28,14 +28,7 @@ func NewGRPCHandler(service *service.OrderService, logger *slog.Logger) *GRPCHan
 }
 
 func (h *GRPCHandler) CreateOrder(ctx context.Context, req *orderv1.CreateOrderRequest) (*orderv1.CreateOrderResponse, error) {
-	order, err := h.service.CreateOrder(ctx, domain.Order{
-		CustomerID:     req.GetCustomerId(),
-		Symbol:         req.GetSymbol(),
-		Side:           mapProtoSideToDomain(req.GetSide()),
-		PriceCents:     req.GetPriceCents(),
-		QuantityUnits:  req.GetQuantityUnits(),
-		IdempotencyKey: req.GetIdempotencyKey(),
-	})
+	order, err := h.service.CreateOrder(ctx, mapCreateOrderRequestToDomain(req))
 	if err != nil {
 		return nil, mapOrderError(err)
 	}
@@ -54,6 +47,17 @@ func (h *GRPCHandler) GetOrderByID(ctx context.Context, req *orderv1.GetOrderByI
 	return &orderv1.GetOrderByIDResponse{
 		Order: mapDomainOrderToProto(order),
 	}, nil
+}
+
+func mapCreateOrderRequestToDomain(req *orderv1.CreateOrderRequest) domain.Order {
+	return domain.Order{
+		CustomerID:     req.GetCustomerId(),
+		Symbol:         req.GetSymbol(),
+		Side:           mapProtoSideToDomain(req.GetSide()),
+		PriceCents:     req.GetPriceCents(),
+		QuantityUnits:  req.GetQuantityUnits(),
+		IdempotencyKey: req.GetIdempotencyKey(),
+	}
 }
 
 func mapDomainOrderToProto(order domain.Order) *orderv1.Order {
@@ -122,6 +126,19 @@ func mapDomainSideToProto(side domain.OrderSide) orderv1.OrderSide {
 	}
 }
 
+func mapProtoStatusToDomain(status orderv1.OrderStatus) domain.OrderStatus {
+	switch status {
+	case orderv1.OrderStatus_ORDER_STATUS_PENDING:
+		return domain.OrderStatusPending
+	case orderv1.OrderStatus_ORDER_STATUS_FILLED:
+		return domain.OrderStatusFilled
+	case orderv1.OrderStatus_ORDER_STATUS_CANCELED:
+		return domain.OrderStatusCanceled
+	default:
+		return ""
+	}
+}
+
 func mapDomainStatusToProto(status domain.OrderStatus) orderv1.OrderStatus {
 	switch status {
 	case domain.OrderStatusPending:
@@ -140,4 +157,19 @@ func timeToProto(value *time.Time) *timestamppb.Timestamp {
 		return nil
 	}
 	return timestamppb.New(*value)
+}
+
+func protoToTime(value *timestamppb.Timestamp) time.Time {
+	if value == nil {
+		return time.Time{}
+	}
+	return value.AsTime()
+}
+
+func protoToTimePtr(value *timestamppb.Timestamp) *time.Time {
+	if value == nil {
+		return nil
+	}
+	t := value.AsTime()
+	return &t
 }
