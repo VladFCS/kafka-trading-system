@@ -45,6 +45,27 @@ func (s *OrderService) GetOrderByID(ctx context.Context, orderID string) (domain
 	return order, nil
 }
 
+func (s *OrderService) CancelOrder(ctx context.Context, orderID string) (bool, error) {
+	if orderID == "" {
+		return false, domain.ErrMissingOrderID
+	}
+
+	order, err := s.repository.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return false, err
+	}
+
+	if err := order.Cancel(); err != nil {
+		return false, err
+	}
+
+	if err := s.repository.CancelOrder(ctx, order); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
 	if order.CustomerID == "" {
 		return domain.Order{}, domain.ErrMissingCustomerID
