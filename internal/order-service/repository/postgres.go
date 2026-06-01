@@ -109,6 +109,32 @@ func (r *PostgresRepository) UpdateOrderExecution(ctx context.Context, order dom
 	return nil
 }
 
+func (r *PostgresRepository) CancelOrder(ctx context.Context, order domain.Order) error {
+	if err := validateOrder(order); err != nil {
+		return err
+	}
+	if order.Status != domain.OrderStatusPending {
+		return domain.ErrOrderTerminal
+	}
+
+	rowsAffected, err := r.queries.CancelOrder(ctx, order.OrderID)
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		currentOrder, err := r.GetOrderByID(ctx, order.OrderID)
+		if err != nil {
+			return err
+		}
+		if currentOrder.Status != domain.OrderStatusPending {
+			return domain.ErrOrderTerminal
+		}
+
+		return domain.ErrOrderUpdateConflict
+	}
+	return nil
+}
+
 func validateOrder(order domain.Order) error {
 	if order.CustomerID == "" {
 		return domain.ErrMissingCustomerID

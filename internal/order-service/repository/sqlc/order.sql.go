@@ -11,6 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelOrder = `-- name: CancelOrder :execrows
+UPDATE orders
+SET status = 'CANCELED',
+    canceled_at = NOW(),
+    updated_at = NOW()
+WHERE order_id = $1
+  AND status = 'PENDING'
+`
+
+func (q *Queries) CancelOrder(ctx context.Context, orderID string) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelOrder, orderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
   order_id,
