@@ -3,12 +3,14 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vladfc/kafka-trading-system/internal/order-service/domain"
+	"github.com/vladfc/kafka-trading-system/internal/order-service/events"
 	orderdb "github.com/vladfc/kafka-trading-system/internal/order-service/repository/sqlc"
 )
 
@@ -47,6 +49,10 @@ func (r *PostgresRepository) CreateOrder(ctx context.Context, order domain.Order
 
 	mappedOrder, err := mapDBOrder(row)
 	if err != nil {
+		return domain.Order{}, err
+	}
+
+	if err := insertOrderCreatedOutboxEvent(ctx, qtx, mappedOrder); err != nil {
 		return domain.Order{}, err
 	}
 
@@ -207,6 +213,35 @@ func toUpdateOrderExecutionParams(order domain.Order) orderdb.UpdateOrderExecuti
 		RemainingQuantityUnits: order.RemainingQuantityUnits,
 		Status:                 string(order.Status),
 	}
+}
+
+func toCreateOutboxEventParams(message *events.OutboxMessage) orderdb.CreateOutboxEventParams {
+	if message == nil {
+		return orderdb.CreateOutboxEventParams{}
+	}
+
+	return orderdb.CreateOutboxEventParams{
+		ID:            message.ID,
+		AggregateType: message.AggregateType,
+		AggregateID:   message.AggregateID,
+		EventType:     message.EventType,
+		Topic:         message.Topic,
+		PartitionKey:  message.Key,
+		Payload:       message.Payload,
+	}
+}
+
+func insertOrderCreatedOutboxEvent(ctx context.Context, q *orderdb.Queries, order domain.Order) error {
+	message, err := events.NewOrderCreatedOutboxMessage(order)
+	if err != nil {
+		return fmt.Errorf("create order outbox event in postgres: %w", err)
+	}
+
+	if err := q.CreateOutboxEvent(ctx, toCreateOutboxEventParams(message)); err != nil {
+		return fmt.Errorf("create order outbox event in postgres: %w", err)
+	}
+
+	return nil
 }
 
 func mapDBOrder(order orderdb.Order) (domain.Order, error) {
