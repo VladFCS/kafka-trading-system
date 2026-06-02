@@ -103,6 +103,49 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 	return i, err
 }
 
+const createOutboxEvent = `-- name: CreateOutboxEvent :exec
+INSERT INTO order_outbox (
+  id,
+  aggregate_type,
+  aggregate_id,
+  event_type,
+  topic,
+  partition_key,
+  payload
+) VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7
+)
+`
+
+type CreateOutboxEventParams struct {
+	ID            string `json:"id"`
+	AggregateType string `json:"aggregate_type"`
+	AggregateID   string `json:"aggregate_id"`
+	EventType     string `json:"event_type"`
+	Topic         string `json:"topic"`
+	PartitionKey  string `json:"partition_key"`
+	Payload       []byte `json:"payload"`
+}
+
+func (q *Queries) CreateOutboxEvent(ctx context.Context, arg CreateOutboxEventParams) error {
+	_, err := q.db.Exec(ctx, createOutboxEvent,
+		arg.ID,
+		arg.AggregateType,
+		arg.AggregateID,
+		arg.EventType,
+		arg.Topic,
+		arg.PartitionKey,
+		arg.Payload,
+	)
+	return err
+}
+
 const getListOrdersByCustomerID = `-- name: GetListOrdersByCustomerID :many
 SELECT order_id, customer_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
 FROM orders

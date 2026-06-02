@@ -28,6 +28,25 @@ INSERT INTO orders (
 )
 RETURNING *;
 
+-- name: CreateOutboxEvent :exec
+INSERT INTO order_outbox (
+  id,
+  aggregate_type,
+  aggregate_id,
+  event_type,
+  topic,
+  partition_key,
+  payload
+) VALUES (
+  sqlc.arg(id),
+  sqlc.arg(aggregate_type),
+  sqlc.arg(aggregate_id),
+  sqlc.arg(event_type),
+  sqlc.arg(topic),
+  sqlc.arg(partition_key),
+  sqlc.arg(payload)
+);
+
 -- name: GetOrderByID :one
 SELECT *
 FROM orders
