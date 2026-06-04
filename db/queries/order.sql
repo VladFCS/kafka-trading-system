@@ -74,3 +74,23 @@ SET status = 'CANCELED',
     updated_at = NOW()
 WHERE order_id = sqlc.arg(order_id)
   AND status = 'PENDING';
+
+-- name: LockUnpublishedOutboxEvents :many
+SELECT *
+FROM order_outbox
+WHERE published_at IS NULL
+ORDER BY created_at ASC
+LIMIT sqlc.arg(limit_count)
+FOR UPDATE SKIP LOCKED;
+
+-- name: MarkOutboxEventPublished :exec
+UPDATE order_outbox
+SET published_at = NOW(),
+    last_error = NULL
+WHERE id = sqlc.arg(id);
+
+-- name: MarkOutboxEventFailed :exec
+UPDATE order_outbox
+SET retry_count = retry_count + 1,
+    last_error = sqlc.arg(last_error)
+WHERE id = sqlc.arg(id);

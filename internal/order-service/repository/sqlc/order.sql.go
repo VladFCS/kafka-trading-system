@@ -219,6 +219,76 @@ func (q *Queries) GetOrderByID(ctx context.Context, orderID string) (Order, erro
 	return i, err
 }
 
+const lockUnpublishedOutboxEvents = `-- name: LockUnpublishedOutboxEvents :many
+SELECT id, aggregate_type, aggregate_id, event_type, topic, partition_key, payload, retry_count, last_error, created_at, published_at
+FROM order_outbox
+WHERE published_at IS NULL
+ORDER BY created_at ASC
+LIMIT $1
+FOR UPDATE SKIP LOCKED
+`
+
+func (q *Queries) LockUnpublishedOutboxEvents(ctx context.Context, limitCount int32) ([]OrderOutbox, error) {
+	rows, err := q.db.Query(ctx, lockUnpublishedOutboxEvents, limitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OrderOutbox{}
+	for rows.Next() {
+		var i OrderOutbox
+		if err := rows.Scan(
+			&i.ID,
+			&i.AggregateType,
+			&i.AggregateID,
+			&i.EventType,
+			&i.Topic,
+			&i.PartitionKey,
+			&i.Payload,
+			&i.RetryCount,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.PublishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markOutboxEventFailed = `-- name: MarkOutboxEventFailed :exec
+UPDATE order_outbox
+SET retry_count = retry_count + 1,
+    last_error = $1
+WHERE id = $2
+`
+
+type MarkOutboxEventFailedParams struct {
+	LastError pgtype.Text `json:"last_error"`
+	ID        string      `json:"id"`
+}
+
+func (q *Queries) MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error {
+	_, err := q.db.Exec(ctx, markOutboxEventFailed, arg.LastError, arg.ID)
+	return err
+}
+
+const markOutboxEventPublished = `-- name: MarkOutboxEventPublished :exec
+UPDATE order_outbox
+SET published_at = NOW(),
+    last_error = NULL
+WHERE id = $1
+`
+
+func (q *Queries) MarkOutboxEventPublished(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, markOutboxEventPublished, id)
+	return err
+}
+
 const updateOrderExecution = `-- name: UpdateOrderExecution :execrows
 UPDATE orders
 SET remaining_quantity_units = $1,
