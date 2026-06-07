@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package marketdata.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vladfc/kafka-trading-system/gen/marketdata/v1;marketdatav1";
+
+service MarketDataService {
+  rpc GetLatestPrice(GetLatestPriceRequest) returns (GetLatestPriceResponse);
+  rpc GetRecentTrades(GetRecentTradesRequest) returns (GetRecentTradesResponse);
+  rpc GetOrderBook(GetOrderBookRequest) returns (GetOrderBookResponse);
+}
+
+enum OrderBookSide {
+  ORDER_BOOK_SIDE_UNSPECIFIED = 0;
+  ORDER_BOOK_SIDE_BID = 1;
+  ORDER_BOOK_SIDE_ASK = 2;
+}
+
+message GetLatestPriceRequest {
+  string symbol = 1;
+}
+
+message GetLatestPriceResponse {
+  string symbol = 1;
+  int64 price_cents = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message GetRecentTradesRequest {
+  string symbol = 1;
+  int32 limit = 2;
+}
+
+message GetRecentTradesResponse {
+  repeated Trade trades = 1;
+}
+
+message Trade {
+  string trade_id = 1;
+  string symbol = 2;
+  int64 price_cents = 3;
+  int64 quantity_units = 4;
+  string buy_order_id = 5;
+  string sell_order_id = 6;
+  google.protobuf.Timestamp executed_at = 7;
+}
+
+message GetOrderBookRequest {
+  string symbol = 1;
+  int32 depth = 2;
+}
+
+message GetOrderBookResponse {
+  string symbol = 1;
+  repeated OrderBookLevel bids = 2;
+  repeated OrderBookLevel asks = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message OrderBookLevel {
+  int64 price_cents = 1;
+  int64 quantity_units = 2;
+  int32 order_count = 3;
+}
