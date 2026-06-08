@@ -1,15 +1,18 @@
 -- name: UpsertLatestPrice :exec
 INSERT INTO market_latest_prices (
+  symbol_id,
   symbol,
   price_cents,
   updated_at
 ) VALUES (
+  sqlc.arg(symbol_id),
   sqlc.arg(symbol),
   sqlc.arg(price_cents),
   COALESCE(sqlc.narg(updated_at), NOW())
 )
-ON CONFLICT (symbol) DO UPDATE
-SET price_cents = EXCLUDED.price_cents,
+ON CONFLICT (symbol_id) DO UPDATE
+SET symbol = EXCLUDED.symbol,
+    price_cents = EXCLUDED.price_cents,
     updated_at = EXCLUDED.updated_at;
 
 -- name: GetLatestPrice :one
@@ -20,6 +23,7 @@ WHERE symbol = $1;
 -- name: InsertTrade :exec
 INSERT INTO market_trades (
   trade_id,
+  symbol_id,
   symbol,
   price_cents,
   quantity_units,
@@ -28,6 +32,7 @@ INSERT INTO market_trades (
   executed_at
 ) VALUES (
   sqlc.arg(trade_id),
+  sqlc.arg(symbol_id),
   sqlc.arg(symbol),
   sqlc.arg(price_cents),
   sqlc.arg(quantity_units),
@@ -45,6 +50,7 @@ LIMIT sqlc.arg(limit_count);
 
 -- name: UpsertOrderBookLevel :exec
 INSERT INTO market_order_book_levels (
+  symbol_id,
   symbol,
   side,
   price_cents,
@@ -52,6 +58,7 @@ INSERT INTO market_order_book_levels (
   order_count,
   updated_at
 ) VALUES (
+  sqlc.arg(symbol_id),
   sqlc.arg(symbol),
   sqlc.arg(side),
   sqlc.arg(price_cents),
@@ -59,14 +66,15 @@ INSERT INTO market_order_book_levels (
   sqlc.arg(order_count),
   COALESCE(sqlc.narg(updated_at), NOW())
 )
-ON CONFLICT (symbol, side, price_cents) DO UPDATE
-SET quantity_units = EXCLUDED.quantity_units,
+ON CONFLICT (symbol_id, side, price_cents) DO UPDATE
+SET symbol = EXCLUDED.symbol,
+    quantity_units = EXCLUDED.quantity_units,
     order_count = EXCLUDED.order_count,
     updated_at = EXCLUDED.updated_at;
 
 -- name: DeleteOrderBookLevel :exec
 DELETE FROM market_order_book_levels
-WHERE symbol = sqlc.arg(symbol)
+WHERE symbol_id = sqlc.arg(symbol_id)
   AND side = sqlc.arg(side)
   AND price_cents = sqlc.arg(price_cents);
 
