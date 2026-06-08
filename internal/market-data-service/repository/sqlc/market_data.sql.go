@@ -13,24 +13,24 @@ import (
 
 const deleteOrderBookLevel = `-- name: DeleteOrderBookLevel :exec
 DELETE FROM market_order_book_levels
-WHERE symbol = $1
+WHERE symbol_id = $1
   AND side = $2
   AND price_cents = $3
 `
 
 type DeleteOrderBookLevelParams struct {
-	Symbol     string `json:"symbol"`
+	SymbolID   string `json:"symbol_id"`
 	Side       string `json:"side"`
 	PriceCents int64  `json:"price_cents"`
 }
 
 func (q *Queries) DeleteOrderBookLevel(ctx context.Context, arg DeleteOrderBookLevelParams) error {
-	_, err := q.db.Exec(ctx, deleteOrderBookLevel, arg.Symbol, arg.Side, arg.PriceCents)
+	_, err := q.db.Exec(ctx, deleteOrderBookLevel, arg.SymbolID, arg.Side, arg.PriceCents)
 	return err
 }
 
 const getLatestPrice = `-- name: GetLatestPrice :one
-SELECT symbol, price_cents, updated_at
+SELECT symbol_id, symbol, price_cents, updated_at
 FROM market_latest_prices
 WHERE symbol = $1
 `
@@ -38,12 +38,17 @@ WHERE symbol = $1
 func (q *Queries) GetLatestPrice(ctx context.Context, symbol string) (MarketLatestPrice, error) {
 	row := q.db.QueryRow(ctx, getLatestPrice, symbol)
 	var i MarketLatestPrice
-	err := row.Scan(&i.Symbol, &i.PriceCents, &i.UpdatedAt)
+	err := row.Scan(
+		&i.SymbolID,
+		&i.Symbol,
+		&i.PriceCents,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
 const getOrderBookAsks = `-- name: GetOrderBookAsks :many
-SELECT symbol, side, price_cents, quantity_units, order_count, updated_at
+SELECT symbol_id, symbol, side, price_cents, quantity_units, order_count, updated_at
 FROM market_order_book_levels
 WHERE symbol = $1
   AND side = 'ASK'
@@ -68,6 +73,7 @@ func (q *Queries) GetOrderBookAsks(ctx context.Context, arg GetOrderBookAsksPara
 	for rows.Next() {
 		var i MarketOrderBookLevel
 		if err := rows.Scan(
+			&i.SymbolID,
 			&i.Symbol,
 			&i.Side,
 			&i.PriceCents,
@@ -86,7 +92,7 @@ func (q *Queries) GetOrderBookAsks(ctx context.Context, arg GetOrderBookAsksPara
 }
 
 const getOrderBookBids = `-- name: GetOrderBookBids :many
-SELECT symbol, side, price_cents, quantity_units, order_count, updated_at
+SELECT symbol_id, symbol, side, price_cents, quantity_units, order_count, updated_at
 FROM market_order_book_levels
 WHERE symbol = $1
   AND side = 'BID'
@@ -111,6 +117,7 @@ func (q *Queries) GetOrderBookBids(ctx context.Context, arg GetOrderBookBidsPara
 	for rows.Next() {
 		var i MarketOrderBookLevel
 		if err := rows.Scan(
+			&i.SymbolID,
 			&i.Symbol,
 			&i.Side,
 			&i.PriceCents,
@@ -129,7 +136,7 @@ func (q *Queries) GetOrderBookBids(ctx context.Context, arg GetOrderBookBidsPara
 }
 
 const getRecentTrades = `-- name: GetRecentTrades :many
-SELECT trade_id, symbol, price_cents, quantity_units, buy_order_id, sell_order_id, executed_at
+SELECT trade_id, symbol_id, symbol, price_cents, quantity_units, buy_order_id, sell_order_id, executed_at
 FROM market_trades
 WHERE symbol = $1
 ORDER BY executed_at DESC
@@ -152,6 +159,7 @@ func (q *Queries) GetRecentTrades(ctx context.Context, arg GetRecentTradesParams
 		var i MarketTrade
 		if err := rows.Scan(
 			&i.TradeID,
+			&i.SymbolID,
 			&i.Symbol,
 			&i.PriceCents,
 			&i.QuantityUnits,
@@ -172,6 +180,7 @@ func (q *Queries) GetRecentTrades(ctx context.Context, arg GetRecentTradesParams
 const insertTrade = `-- name: InsertTrade :exec
 INSERT INTO market_trades (
   trade_id,
+  symbol_id,
   symbol,
   price_cents,
   quantity_units,
@@ -185,12 +194,14 @@ INSERT INTO market_trades (
   $4,
   $5,
   $6,
-  $7
+  $7,
+  $8
 )
 `
 
 type InsertTradeParams struct {
 	TradeID       string             `json:"trade_id"`
+	SymbolID      string             `json:"symbol_id"`
 	Symbol        string             `json:"symbol"`
 	PriceCents    int64              `json:"price_cents"`
 	QuantityUnits int64              `json:"quantity_units"`
@@ -202,6 +213,7 @@ type InsertTradeParams struct {
 func (q *Queries) InsertTrade(ctx context.Context, arg InsertTradeParams) error {
 	_, err := q.db.Exec(ctx, insertTrade,
 		arg.TradeID,
+		arg.SymbolID,
 		arg.Symbol,
 		arg.PriceCents,
 		arg.QuantityUnits,
@@ -214,32 +226,42 @@ func (q *Queries) InsertTrade(ctx context.Context, arg InsertTradeParams) error 
 
 const upsertLatestPrice = `-- name: UpsertLatestPrice :exec
 INSERT INTO market_latest_prices (
+  symbol_id,
   symbol,
   price_cents,
   updated_at
 ) VALUES (
   $1,
   $2,
-  COALESCE($3, NOW())
+  $3,
+  COALESCE($4, NOW())
 )
-ON CONFLICT (symbol) DO UPDATE
-SET price_cents = EXCLUDED.price_cents,
+ON CONFLICT (symbol_id) DO UPDATE
+SET symbol = EXCLUDED.symbol,
+    price_cents = EXCLUDED.price_cents,
     updated_at = EXCLUDED.updated_at
 `
 
 type UpsertLatestPriceParams struct {
+	SymbolID   string      `json:"symbol_id"`
 	Symbol     string      `json:"symbol"`
 	PriceCents int64       `json:"price_cents"`
 	UpdatedAt  interface{} `json:"updated_at"`
 }
 
 func (q *Queries) UpsertLatestPrice(ctx context.Context, arg UpsertLatestPriceParams) error {
-	_, err := q.db.Exec(ctx, upsertLatestPrice, arg.Symbol, arg.PriceCents, arg.UpdatedAt)
+	_, err := q.db.Exec(ctx, upsertLatestPrice,
+		arg.SymbolID,
+		arg.Symbol,
+		arg.PriceCents,
+		arg.UpdatedAt,
+	)
 	return err
 }
 
 const upsertOrderBookLevel = `-- name: UpsertOrderBookLevel :exec
 INSERT INTO market_order_book_levels (
+  symbol_id,
   symbol,
   side,
   price_cents,
@@ -252,15 +274,18 @@ INSERT INTO market_order_book_levels (
   $3,
   $4,
   $5,
-  COALESCE($6, NOW())
+  $6,
+  COALESCE($7, NOW())
 )
-ON CONFLICT (symbol, side, price_cents) DO UPDATE
-SET quantity_units = EXCLUDED.quantity_units,
+ON CONFLICT (symbol_id, side, price_cents) DO UPDATE
+SET symbol = EXCLUDED.symbol,
+    quantity_units = EXCLUDED.quantity_units,
     order_count = EXCLUDED.order_count,
     updated_at = EXCLUDED.updated_at
 `
 
 type UpsertOrderBookLevelParams struct {
+	SymbolID      string      `json:"symbol_id"`
 	Symbol        string      `json:"symbol"`
 	Side          string      `json:"side"`
 	PriceCents    int64       `json:"price_cents"`
@@ -271,6 +296,7 @@ type UpsertOrderBookLevelParams struct {
 
 func (q *Queries) UpsertOrderBookLevel(ctx context.Context, arg UpsertOrderBookLevelParams) error {
 	_, err := q.db.Exec(ctx, upsertOrderBookLevel,
+		arg.SymbolID,
 		arg.Symbol,
 		arg.Side,
 		arg.PriceCents,

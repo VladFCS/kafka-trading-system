@@ -9,12 +9,14 @@ import (
 )
 
 type MarketLatestPrice struct {
+	SymbolID   string             `json:"symbol_id"`
 	Symbol     string             `json:"symbol"`
 	PriceCents int64              `json:"price_cents"`
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 type MarketOrderBookLevel struct {
+	SymbolID      string             `json:"symbol_id"`
 	Symbol        string             `json:"symbol"`
 	Side          string             `json:"side"`
 	PriceCents    int64              `json:"price_cents"`
@@ -25,6 +27,7 @@ type MarketOrderBookLevel struct {
 
 type MarketTrade struct {
 	TradeID       string             `json:"trade_id"`
+	SymbolID      string             `json:"symbol_id"`
 	Symbol        string             `json:"symbol"`
 	PriceCents    int64              `json:"price_cents"`
 	QuantityUnits int64              `json:"quantity_units"`
