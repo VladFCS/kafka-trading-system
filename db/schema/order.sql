@@ -1,6 +1,5 @@
 CREATE TABLE IF NOT EXISTS orders (
     order_id TEXT PRIMARY KEY,
-    customer_id TEXT NOT NULL,
     symbol TEXT NOT NULL,
     side TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
     price_cents BIGINT NOT NULL CHECK (price_cents > 0),
@@ -16,9 +15,6 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE UNIQUE INDEX IF NOT EXISTS orders_idempotency_key_uidx
     ON orders (idempotency_key)
     WHERE idempotency_key IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS orders_customer_id_created_at_idx
-    ON orders (customer_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS orders_symbol_status_created_at_idx
     ON orders (symbol, status, created_at ASC);

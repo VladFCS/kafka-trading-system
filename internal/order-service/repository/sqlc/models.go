@@ -10,7 +10,6 @@ import (
 
 type Order struct {
 	OrderID                string             `json:"order_id"`
-	CustomerID             string             `json:"customer_id"`
 	Symbol                 string             `json:"symbol"`
 	Side                   string             `json:"side"`
 	PriceCents             int64              `json:"price_cents"`

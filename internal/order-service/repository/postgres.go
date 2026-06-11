@@ -198,9 +198,6 @@ func (r *PostgresRepository) CancelOrder(ctx context.Context, order domain.Order
 }
 
 func validateOrder(order domain.Order) error {
-	if order.CustomerID == "" {
-		return domain.ErrMissingCustomerID
-	}
 	if order.Symbol == "" {
 		return domain.ErrMissingSymbol
 	}
@@ -251,7 +248,6 @@ func toCreateOrderParams(order domain.Order) orderdb.CreateOrderParams {
 
 	return orderdb.CreateOrderParams{
 		OrderID:        order.OrderID,
-		CustomerID:     order.CustomerID,
 		Symbol:         order.Symbol,
 		Side:           string(order.Side),
 		PriceCents:     order.PriceCents,
@@ -335,7 +331,6 @@ func mapDBOrder(order orderdb.Order) (domain.Order, error) {
 
 	return domain.Order{
 		OrderID:                order.OrderID,
-		CustomerID:             order.CustomerID,
 		Symbol:                 order.Symbol,
 		Side:                   domain.OrderSide(order.Side),
 		PriceCents:             order.PriceCents,

@@ -10,7 +10,6 @@ service OrderService {
   rpc CreateOrder (CreateOrderRequest) returns (CreateOrderResponse);
   rpc GetOrderByID (GetOrderByIDRequest) returns (GetOrderByIDResponse);
   rpc CancelOrder (CancelOrderRequest) returns (CancelOrderResponse);
-  rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
 }
 
 enum OrderStatus {
@@ -28,7 +27,7 @@ enum OrderSide {
 
 message Order {
   string order_id = 1;
-  string customer_id = 2;
+  reserved 2;
   string symbol = 3;
   // Price is stored in cents. Example: 450.44 -> 45044.
   int64 price_cents = 4;
@@ -44,7 +43,7 @@ message Order {
 }
 
 message CreateOrderRequest {
-  string customer_id = 1;
+  reserved 1;
   string symbol = 2;
   int64 price_cents = 3;
   int64 quantity_units = 4;
@@ -70,14 +69,4 @@ message CancelOrderRequest {
 
 message CancelOrderResponse {
   bool canceled = 1;
-}
-
-message ListOrdersRequest {
-  string customer_id = 1;
-  int32 page = 2;
-  int32 page_size = 3;
-}
-
-message ListOrdersResponse {
-  repeated Order orders = 1;
 }

@@ -9,7 +9,6 @@ import (
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order domain.Order) (domain.Order, error)
 	GetOrderByID(ctx context.Context, orderID string) (domain.Order, error)
-	GetListOrdersByCustomerID(ctx context.Context, customerID string) ([]domain.Order, error)
 	UpdateOrderExecution(ctx context.Context, order domain.Order) error
 	CancelOrder(ctx context.Context, order domain.Order) error
 }

@@ -8,7 +8,6 @@ import (
 var (
 	ErrOrderNotFound                    = errors.New("order not found")
 	ErrInvalidOrder                     = errors.New("invalid order")
-	ErrMissingCustomerID                = errors.New("missing customer id")
 	ErrMissingSymbol                    = errors.New("missing symbol")
 	ErrInvalidOrderSide                 = errors.New("invalid order side")
 	ErrInvalidPriceCents                = errors.New("invalid price cents")
@@ -51,7 +50,6 @@ func CanTransition(from OrderStatus, to OrderStatus) bool {
 
 type Order struct {
 	OrderID                string      `json:"order_id"`
-	CustomerID             string      `json:"customer_id"`
 	Symbol                 string      `json:"symbol"`
 	Side                   OrderSide   `json:"side"`
 	PriceCents             int64       `json:"price_cents"`

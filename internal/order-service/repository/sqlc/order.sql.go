@@ -36,7 +36,6 @@ func (q *Queries) CancelOrder(ctx context.Context, arg CancelOrderParams) (int64
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
   order_id,
-  customer_id,
   symbol,
   side,
   price_cents,
@@ -53,20 +52,18 @@ INSERT INTO orders (
   $3,
   $4,
   $5,
-  $6,
+  $5,
   $6,
   $7,
   $8,
-  $9,
-  COALESCE($10, NOW()),
+  COALESCE($9, NOW()),
   NOW()
 )
-RETURNING order_id, customer_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
+RETURNING order_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
 `
 
 type CreateOrderParams struct {
 	OrderID        string             `json:"order_id"`
-	CustomerID     string             `json:"customer_id"`
 	Symbol         string             `json:"symbol"`
 	Side           string             `json:"side"`
 	PriceCents     int64              `json:"price_cents"`
@@ -80,7 +77,6 @@ type CreateOrderParams struct {
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error) {
 	row := q.db.QueryRow(ctx, createOrder,
 		arg.OrderID,
-		arg.CustomerID,
 		arg.Symbol,
 		arg.Side,
 		arg.PriceCents,
@@ -93,7 +89,6 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 	var i Order
 	err := row.Scan(
 		&i.OrderID,
-		&i.CustomerID,
 		&i.Symbol,
 		&i.Side,
 		&i.PriceCents,
@@ -151,55 +146,8 @@ func (q *Queries) CreateOutboxEvent(ctx context.Context, arg CreateOutboxEventPa
 	return err
 }
 
-const getListOrdersByCustomerID = `-- name: GetListOrdersByCustomerID :many
-SELECT order_id, customer_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
-FROM orders
-WHERE customer_id = $1
-ORDER BY created_at DESC
-LIMIT $2 OFFSET $3
-`
-
-type GetListOrdersByCustomerIDParams struct {
-	CustomerID string `json:"customer_id"`
-	Limit      int32  `json:"limit"`
-	Offset     int32  `json:"offset"`
-}
-
-func (q *Queries) GetListOrdersByCustomerID(ctx context.Context, arg GetListOrdersByCustomerIDParams) ([]Order, error) {
-	rows, err := q.db.Query(ctx, getListOrdersByCustomerID, arg.CustomerID, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Order{}
-	for rows.Next() {
-		var i Order
-		if err := rows.Scan(
-			&i.OrderID,
-			&i.CustomerID,
-			&i.Symbol,
-			&i.Side,
-			&i.PriceCents,
-			&i.QuantityUnits,
-			&i.RemainingQuantityUnits,
-			&i.Status,
-			&i.IdempotencyKey,
-			&i.CanceledAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getOrderByID = `-- name: GetOrderByID :one
-SELECT order_id, customer_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
+SELECT order_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
 FROM orders
 WHERE order_id = $1
 `
@@ -209,7 +157,6 @@ func (q *Queries) GetOrderByID(ctx context.Context, orderID string) (Order, erro
 	var i Order
 	err := row.Scan(
 		&i.OrderID,
-		&i.CustomerID,
 		&i.Symbol,
 		&i.Side,
 		&i.PriceCents,

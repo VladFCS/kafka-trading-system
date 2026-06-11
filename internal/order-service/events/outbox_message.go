@@ -38,7 +38,6 @@ func NewOrderCreatedOutboxMessage(order domain.Order) (*OutboxMessage, error) {
 		EventID:                eventID,
 		EventType:              shared.OrderCreatedEventType,
 		OrderID:                order.OrderID,
-		CustomerID:             order.CustomerID,
 		Symbol:                 order.Symbol,
 		Side:                   string(order.Side),
 		PriceCents:             order.PriceCents,

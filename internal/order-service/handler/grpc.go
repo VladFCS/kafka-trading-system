@@ -62,7 +62,6 @@ func (h *GRPCHandler) CancelOrder(ctx context.Context, req *orderv1.CancelOrderR
 
 func mapCreateOrderRequestToDomain(req *orderv1.CreateOrderRequest) domain.Order {
 	return domain.Order{
-		CustomerID:     req.GetCustomerId(),
 		Symbol:         req.GetSymbol(),
 		Side:           mapProtoSideToDomain(req.GetSide()),
 		PriceCents:     req.GetPriceCents(),
@@ -79,7 +78,6 @@ func mapDomainOrderToProto(order domain.Order) *orderv1.Order {
 
 	return &orderv1.Order{
 		OrderId:                order.OrderID,
-		CustomerId:             order.CustomerID,
 		Symbol:                 order.Symbol,
 		Side:                   mapDomainSideToProto(order.Side),
 		PriceCents:             order.PriceCents,
@@ -102,7 +100,6 @@ func mapOrderError(err error) error {
 	case errors.Is(err, domain.ErrOrderUpdateConflict):
 		return status.Error(codes.Aborted, err.Error())
 	case errors.Is(err, domain.ErrMissingOrderID),
-		errors.Is(err, domain.ErrMissingCustomerID),
 		errors.Is(err, domain.ErrMissingSymbol),
 		errors.Is(err, domain.ErrInvalidOrderSide),
 		errors.Is(err, domain.ErrInvalidPriceCents),

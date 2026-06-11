@@ -1,7 +1,6 @@
 -- name: CreateOrder :one
 INSERT INTO orders (
   order_id,
-  customer_id,
   symbol,
   side,
   price_cents,
@@ -14,7 +13,6 @@ INSERT INTO orders (
   updated_at
 ) VALUES (
   sqlc.arg(order_id),
-  sqlc.arg(customer_id),
   sqlc.arg(symbol),
   sqlc.arg(side),
   sqlc.arg(price_cents),
@@ -51,13 +49,6 @@ INSERT INTO order_outbox (
 SELECT *
 FROM orders
 WHERE order_id = $1;
-
--- name: GetListOrdersByCustomerID :many
-SELECT *
-FROM orders
-WHERE customer_id = $1
-ORDER BY created_at DESC
-LIMIT $2 OFFSET $3;
 
 -- name: UpdateOrderExecution :execrows
 UPDATE orders

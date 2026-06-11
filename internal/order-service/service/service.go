@@ -67,9 +67,6 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID string) (bool, e
 }
 
 func normalizeCreateOrder(order domain.Order) (domain.Order, error) {
-	if order.CustomerID == "" {
-		return domain.Order{}, domain.ErrMissingCustomerID
-	}
 	if order.Symbol == "" {
 		return domain.Order{}, domain.ErrMissingSymbol
 	}
