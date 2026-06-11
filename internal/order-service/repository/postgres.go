@@ -232,8 +232,28 @@ func (r *PostgresRepository) CancelOrder(ctx context.Context, order domain.Order
 	return nil
 }
 
-func (r *PostgresRepository) LockUnpublished(ctx context.Context, limit int32) ([]events.OutboxMessage, error) {
-	rows, err := r.queries.LockUnpublishedOutboxEvents(ctx, limit)
+func (r *PostgresRepository) ClaimUnpublished(ctx context.Context, limit int32, lockedBy string, reclaimBefore time.Time) ([]events.OutboxMessage, error) {
+	if limit <= 0 {
+		return nil, domain.ErrInvalidOrder
+	}
+	if lockedBy == "" {
+		return nil, domain.ErrInvalidOrder
+	}
+	if reclaimBefore.IsZero() {
+		return nil, domain.ErrInvalidOrder
+	}
+
+	rows, err := r.queries.ClaimUnpublishedOutboxEvents(ctx, orderdb.ClaimUnpublishedOutboxEventsParams{
+		LimitCount: limit,
+		LockedBy: pgtype.Text{
+			String: lockedBy,
+			Valid:  true,
+		},
+		ReclaimBefore: pgtype.Timestamptz{
+			Time:  reclaimBefore,
+			Valid: true,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -250,16 +270,29 @@ func (r *PostgresRepository) LockUnpublished(ctx context.Context, limit int32) (
 	return messages, nil
 }
 
-func (r *PostgresRepository) MarkPublished(ctx context.Context, id string) error {
+func (r *PostgresRepository) MarkPublished(ctx context.Context, id string, lockedBy string) error {
 	if id == "" {
 		return domain.ErrInvalidOrder
 	}
+	if lockedBy == "" {
+		return domain.ErrInvalidOrder
+	}
 
-	return r.queries.MarkOutboxEventPublished(ctx, id)
+	_, err := r.queries.MarkOutboxEventPublished(ctx, orderdb.MarkOutboxEventPublishedParams{
+		ID: id,
+		LockedBy: pgtype.Text{
+			String: lockedBy,
+			Valid:  true,
+		},
+	})
+	return err
 }
 
-func (r *PostgresRepository) MarkFailed(ctx context.Context, id string, publishErr error) error {
+func (r *PostgresRepository) MarkFailed(ctx context.Context, id string, lockedBy string, publishErr error) error {
 	if id == "" {
+		return domain.ErrInvalidOrder
+	}
+	if lockedBy == "" {
 		return domain.ErrInvalidOrder
 	}
 
@@ -268,13 +301,18 @@ func (r *PostgresRepository) MarkFailed(ctx context.Context, id string, publishE
 		lastError = publishErr.Error()
 	}
 
-	return r.queries.MarkOutboxEventFailed(ctx, orderdb.MarkOutboxEventFailedParams{
+	_, err := r.queries.MarkOutboxEventFailed(ctx, orderdb.MarkOutboxEventFailedParams{
 		ID: id,
+		LockedBy: pgtype.Text{
+			String: lockedBy,
+			Valid:  true,
+		},
 		LastError: pgtype.Text{
 			String: lastError,
 			Valid:  true,
 		},
 	})
+	return err
 }
 
 func validateOrder(order domain.Order) error {
@@ -424,7 +462,7 @@ func mapDBOrder(order orderdb.Order) (domain.Order, error) {
 	}, nil
 }
 
-func mapDBOutboxMessage(row orderdb.OrderOutbox) (events.OutboxMessage, error) {
+func mapDBOutboxMessage(row orderdb.ClaimUnpublishedOutboxEventsRow) (events.OutboxMessage, error) {
 	createdAt, err := timestamptzToTime(row.CreatedAt)
 	if err != nil {
 		return events.OutboxMessage{}, err

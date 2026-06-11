@@ -32,6 +32,8 @@ type OrderOutbox struct {
 	Payload       []byte             `json:"payload"`
 	RetryCount    int32              `json:"retry_count"`
 	LastError     pgtype.Text        `json:"last_error"`
+	LockedAt      pgtype.Timestamptz `json:"locked_at"`
+	LockedBy      pgtype.Text        `json:"locked_by"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	PublishedAt   pgtype.Timestamptz `json:"published_at"`
 }

@@ -2,6 +2,8 @@ package events
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"time"
 )
@@ -11,17 +13,19 @@ type EventPublisher interface {
 }
 
 type OutboxRepository interface {
-	LockUnpublished(ctx context.Context, limit int32) ([]OutboxMessage, error)
-	MarkPublished(ctx context.Context, id string) error
-	MarkFailed(ctx context.Context, id string, publishErr error) error
+	ClaimUnpublished(ctx context.Context, limit int32, lockedBy string, reclaimBefore time.Time) ([]OutboxMessage, error)
+	MarkPublished(ctx context.Context, id string, lockedBy string) error
+	MarkFailed(ctx context.Context, id string, lockedBy string, publishErr error) error
 }
 
 type OutboxPublisher struct {
-	repository OutboxRepository
-	publisher  EventPublisher
-	logger     *slog.Logger
-	batchSize  int32
-	interval   time.Duration
+	repository  OutboxRepository
+	publisher   EventPublisher
+	logger      *slog.Logger
+	batchSize   int32
+	interval    time.Duration
+	lockTimeout time.Duration
+	workerID    string
 }
 
 func NewOutboxPublisher(
@@ -42,11 +46,13 @@ func NewOutboxPublisher(
 	}
 
 	return &OutboxPublisher{
-		repository: repository,
-		publisher:  publisher,
-		logger:     logger,
-		batchSize:  batchSize,
-		interval:   interval,
+		repository:  repository,
+		publisher:   publisher,
+		logger:      logger,
+		batchSize:   batchSize,
+		interval:    interval,
+		lockTimeout: 30 * time.Second,
+		workerID:    newWorkerID(),
 	}
 }
 
@@ -68,7 +74,9 @@ func (p *OutboxPublisher) Run(ctx context.Context) error {
 }
 
 func (p *OutboxPublisher) PublishOnce(ctx context.Context) error {
-	events, err := p.repository.LockUnpublished(ctx, p.batchSize)
+	reclaimBefore := time.Now().UTC().Add(-p.lockTimeout)
+
+	events, err := p.repository.ClaimUnpublished(ctx, p.batchSize, p.workerID, reclaimBefore)
 	if err != nil {
 		return err
 	}
@@ -76,13 +84,34 @@ func (p *OutboxPublisher) PublishOnce(ctx context.Context) error {
 	for _, event := range events {
 		err := p.publisher.Publish(ctx, event.Topic, event.Key, event.Payload)
 		if err != nil {
-			_ = p.repository.MarkFailed(ctx, event.ID, err)
+			p.logger.Error("outbox publish failed",
+				"event_id", event.ID,
+				"event_type", event.EventType,
+				"topic", event.Topic,
+				"key", event.Key,
+				"error", err,
+			)
+			_ = p.repository.MarkFailed(ctx, event.ID, p.workerID, err)
 			continue
 		}
-		if err := p.repository.MarkPublished(ctx, event.ID); err != nil {
+		if err := p.repository.MarkPublished(ctx, event.ID, p.workerID); err != nil {
 			return err
 		}
+		p.logger.Info("outbox event published",
+			"event_id", event.ID,
+			"event_type", event.EventType,
+			"topic", event.Topic,
+			"key", event.Key,
+		)
 	}
 
 	return nil
+}
+
+func newWorkerID() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "outbox-publisher-" + time.Now().UTC().Format("20060102150405.000000000")
+	}
+	return "outbox-publisher-" + hex.EncodeToString(raw[:])
 }
