@@ -65,41 +65,6 @@ func NewOrderCreatedOutboxMessage(order domain.Order) (*OutboxMessage, error) {
 	}, nil
 }
 
-func NewOrderCanceledOutboxMessage(order domain.Order) (*OutboxMessage, error) {
-	if strings.TrimSpace(order.OrderID) == "" {
-		return nil, fmt.Errorf("order id is required")
-	}
-	if strings.TrimSpace(order.Symbol) == "" {
-		return nil, fmt.Errorf("order symbol is required")
-	}
-
-	eventID := newEventID()
-	occurredAt := time.Now().UTC()
-
-	event := shared.OrderCanceledEvent{
-		EventID:    eventID,
-		EventType:  shared.OrderCanceledEventType,
-		OrderID:    order.OrderID,
-		OccurredAt: occurredAt.Format(time.RFC3339Nano),
-	}
-
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return nil, fmt.Errorf("marshal order canceled event: %w", err)
-	}
-
-	return &OutboxMessage{
-		ID:            eventID,
-		AggregateType: "order",
-		AggregateID:   order.OrderID,
-		EventType:     shared.OrderCanceledEventType,
-		Topic:         shared.OrderTopic,
-		Key:           order.Symbol,
-		Payload:       payload,
-		CreatedAt:     occurredAt,
-	}, nil
-}
-
 func NewOrderUpdatedOutboxMessage(order domain.Order, previousStatus domain.OrderStatus) (*OutboxMessage, error) {
 	if strings.TrimSpace(order.OrderID) == "" {
 		return nil, fmt.Errorf("order id is required")

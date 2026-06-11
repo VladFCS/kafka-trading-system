@@ -3,9 +3,8 @@ package shared
 const (
 	OrderTopic = "orders"
 
-	OrderCreatedEventType  = "orders.created"
-	OrderCanceledEventType = "orders.cancelled"
-	OrderUpdatedEventType  = "orders.updated"
+	OrderCreatedEventType = "orders.created"
+	OrderUpdatedEventType = "orders.updated"
 )
 
 type OrderCreatedEvent struct {
@@ -20,13 +19,6 @@ type OrderCreatedEvent struct {
 	RemainingQuantityUnits int64  `json:"remaining_quantity_units"`
 	Status                 string `json:"status"`
 	OccurredAt             string `json:"occurred_at"`
-}
-
-type OrderCanceledEvent struct {
-	EventID    string `json:"event_id"`
-	EventType  string `json:"event_type"`
-	OrderID    string `json:"order_id"`
-	OccurredAt string `json:"occurred_at"`
 }
 
 type OrderUpdatedEvent struct {

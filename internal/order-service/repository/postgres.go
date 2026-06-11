@@ -97,20 +97,47 @@ func (r *PostgresRepository) UpdateOrderExecution(ctx context.Context, order dom
 		return domain.ErrInvalidRemainingQuantityUnits
 	}
 
-	rowsAffected, err := r.queries.UpdateOrderExecution(ctx, toUpdateOrderExecutionParams(order))
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("update order execution transaction begin: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	qtx := r.queries.WithTx(tx)
+
+	rowsAffected, err := qtx.UpdateOrderExecution(ctx, toUpdateOrderExecutionParams(order))
+	if err != nil {
+		return fmt.Errorf("update order execution: %w", err)
 	}
 	if rowsAffected == 0 {
-		currentOrder, err := r.GetOrderByID(ctx, order.OrderID)
+		currentOrderRow, err := qtx.GetOrderByID(ctx, order.OrderID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrOrderNotFound
+		}
 		if err != nil {
-			return err
+			return fmt.Errorf("get order by ID: %w", err)
+		}
+		currentOrder, err := mapDBOrder(currentOrderRow)
+		if err != nil {
+			return fmt.Errorf("map order: %w", err)
 		}
 		if currentOrder.Status != domain.OrderStatusPending {
 			return domain.ErrOrderTerminal
 		}
 
 		return domain.ErrOrderUpdateConflict
+	}
+
+	if order.Status == domain.OrderStatusFilled {
+		if err := insertOrderUpdatedOutboxEvent(ctx, qtx, order, domain.OrderStatusPending); err != nil {
+			return fmt.Errorf("insert order filled outbox event: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("update order execution transaction commit: %w", err)
 	}
 	return nil
 }
@@ -160,7 +187,7 @@ func (r *PostgresRepository) CancelOrder(ctx context.Context, order domain.Order
 		return domain.ErrOrderUpdateConflict
 	}
 
-	if err := insertOrderCanceledOutboxEvent(ctx, qtx, order); err != nil {
+	if err := insertOrderUpdatedOutboxEvent(ctx, qtx, order, domain.OrderStatusPending); err != nil {
 		return fmt.Errorf("insert order canceled outbox event: %w", err)
 	}
 
@@ -274,14 +301,14 @@ func insertOrderCreatedOutboxEvent(ctx context.Context, q *orderdb.Queries, orde
 	return nil
 }
 
-func insertOrderCanceledOutboxEvent(ctx context.Context, q *orderdb.Queries, order domain.Order) error {
-	message, err := events.NewOrderCanceledOutboxMessage(order)
+func insertOrderUpdatedOutboxEvent(ctx context.Context, q *orderdb.Queries, order domain.Order, previousStatus domain.OrderStatus) error {
+	message, err := events.NewOrderUpdatedOutboxMessage(order, previousStatus)
 	if err != nil {
-		return fmt.Errorf("create order canceled outbox event in postgres: %w", err)
+		return fmt.Errorf("create order updated outbox event in postgres: %w", err)
 	}
 
 	if err := q.CreateOutboxEvent(ctx, toCreateOutboxEventParams(message)); err != nil {
-		return fmt.Errorf("create order canceled outbox event in postgres: %w", err)
+		return fmt.Errorf("create order updated outbox event in postgres: %w", err)
 	}
 	return nil
 }
