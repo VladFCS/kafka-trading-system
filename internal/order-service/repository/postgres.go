@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vladfc/kafka-trading-system/internal/order-service/domain"
@@ -44,6 +45,14 @@ func (r *PostgresRepository) CreateOrder(ctx context.Context, order domain.Order
 
 	row, err := qtx.CreateOrder(ctx, toCreateOrderParams(order))
 	if err != nil {
+		if order.IdempotencyKey != "" && isUniqueViolation(err) {
+			_ = tx.Rollback(ctx)
+			existingOrder, getErr := r.GetOrderByIdempotencyKey(ctx, order.IdempotencyKey)
+			if getErr != nil {
+				return domain.Order{}, fmt.Errorf("get existing order by idempotency key after duplicate create: %w", getErr)
+			}
+			return existingOrder, nil
+		}
 		return domain.Order{}, err
 	}
 
@@ -57,6 +66,30 @@ func (r *PostgresRepository) CreateOrder(ctx context.Context, order domain.Order
 	}
 
 	if err := tx.Commit(ctx); err != nil {
+		return domain.Order{}, err
+	}
+
+	return mappedOrder, nil
+}
+
+func (r *PostgresRepository) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey string) (domain.Order, error) {
+	if idempotencyKey == "" {
+		return domain.Order{}, domain.ErrInvalidOrder
+	}
+
+	row, err := r.queries.GetOrderByIdempotencyKey(ctx, pgtype.Text{
+		String: idempotencyKey,
+		Valid:  true,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Order{}, domain.ErrOrderNotFound
+	}
+	if err != nil {
+		return domain.Order{}, fmt.Errorf("get order by idempotency key: %w", err)
+	}
+
+	mappedOrder, err := mapDBOrder(row)
+	if err != nil {
 		return domain.Order{}, err
 	}
 
@@ -342,6 +375,11 @@ func mapDBOrder(order orderdb.Order) (domain.Order, error) {
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
 	}, nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func timestamptzToTime(value pgtype.Timestamptz) (time.Time, error) {
