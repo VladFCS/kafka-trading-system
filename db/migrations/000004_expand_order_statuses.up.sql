@@ -1,2 +1,6 @@
--- Intentionally left as a no-op.
--- The current allowed order statuses remain: PENDING, FILLED, CANCELED.
+ALTER TABLE orders
+    DROP CONSTRAINT IF EXISTS orders_status_check;
+
+ALTER TABLE orders
+    ADD CONSTRAINT orders_status_check
+    CHECK (status IN ('PENDING', 'FILLED', 'CANCELED'));
