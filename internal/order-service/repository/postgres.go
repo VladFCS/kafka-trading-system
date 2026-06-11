@@ -20,6 +20,8 @@ type PostgresRepository struct {
 	queries *orderdb.Queries
 }
 
+var _ events.OutboxRepository = (*PostgresRepository)(nil)
+
 func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{
 		pool:    pool,
@@ -230,6 +232,51 @@ func (r *PostgresRepository) CancelOrder(ctx context.Context, order domain.Order
 	return nil
 }
 
+func (r *PostgresRepository) LockUnpublished(ctx context.Context, limit int32) ([]events.OutboxMessage, error) {
+	rows, err := r.queries.LockUnpublishedOutboxEvents(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := make([]events.OutboxMessage, 0, len(rows))
+	for _, row := range rows {
+		message, err := mapDBOutboxMessage(row)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, message)
+	}
+
+	return messages, nil
+}
+
+func (r *PostgresRepository) MarkPublished(ctx context.Context, id string) error {
+	if id == "" {
+		return domain.ErrInvalidOrder
+	}
+
+	return r.queries.MarkOutboxEventPublished(ctx, id)
+}
+
+func (r *PostgresRepository) MarkFailed(ctx context.Context, id string, publishErr error) error {
+	if id == "" {
+		return domain.ErrInvalidOrder
+	}
+
+	lastError := "unknown publish error"
+	if publishErr != nil {
+		lastError = publishErr.Error()
+	}
+
+	return r.queries.MarkOutboxEventFailed(ctx, orderdb.MarkOutboxEventFailedParams{
+		ID: id,
+		LastError: pgtype.Text{
+			String: lastError,
+			Valid:  true,
+		},
+	})
+}
+
 func validateOrder(order domain.Order) error {
 	if order.Symbol == "" {
 		return domain.ErrMissingSymbol
@@ -374,6 +421,24 @@ func mapDBOrder(order orderdb.Order) (domain.Order, error) {
 		CanceledAt:             canceledAt,
 		CreatedAt:              createdAt,
 		UpdatedAt:              updatedAt,
+	}, nil
+}
+
+func mapDBOutboxMessage(row orderdb.OrderOutbox) (events.OutboxMessage, error) {
+	createdAt, err := timestamptzToTime(row.CreatedAt)
+	if err != nil {
+		return events.OutboxMessage{}, err
+	}
+
+	return events.OutboxMessage{
+		ID:            row.ID,
+		AggregateType: row.AggregateType,
+		AggregateID:   row.AggregateID,
+		EventType:     row.EventType,
+		Topic:         row.Topic,
+		Key:           row.PartitionKey,
+		Payload:       row.Payload,
+		CreatedAt:     createdAt,
 	}, nil
 }
 
