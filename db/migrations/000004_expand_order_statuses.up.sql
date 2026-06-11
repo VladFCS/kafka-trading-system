@@ -1,0 +1,2 @@
+-- Intentionally left as a no-op.
+-- The current allowed order statuses remain: PENDING, FILLED, CANCELED.
