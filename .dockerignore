@@ -1,0 +1,12 @@
+bin/
+.cache/
+.git/
+.idea/
+.vscode/
+
+*.test
+*.out
+order-service
+
+README.md
+ROADMAP.md
