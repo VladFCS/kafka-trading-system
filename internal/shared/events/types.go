@@ -5,6 +5,7 @@ const (
 
 	OrderCreatedEventType  = "orders.created"
 	OrderCanceledEventType = "orders.cancelled"
+	OrderUpdatedEventType  = "orders.updated"
 )
 
 type OrderCreatedEvent struct {
@@ -26,4 +27,16 @@ type OrderCanceledEvent struct {
 	EventType  string `json:"event_type"`
 	OrderID    string `json:"order_id"`
 	OccurredAt string `json:"occurred_at"`
+}
+
+type OrderUpdatedEvent struct {
+	EventID                string `json:"event_id"`
+	EventType              string `json:"event_type"`
+	OrderID                string `json:"order_id"`
+	Symbol                 string `json:"symbol"`
+	PreviousStatus         string `json:"previous_status"`
+	NewStatus              string `json:"new_status"`
+	QuantityUnits          int64  `json:"quantity_units"`
+	RemainingQuantityUnits int64  `json:"remaining_quantity_units"`
+	OccurredAt             string `json:"occurred_at"`
 }
