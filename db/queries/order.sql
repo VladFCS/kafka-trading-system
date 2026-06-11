@@ -50,6 +50,11 @@ SELECT *
 FROM orders
 WHERE order_id = $1;
 
+-- name: GetOrderByIdempotencyKey :one
+SELECT *
+FROM orders
+WHERE idempotency_key = $1;
+
 -- name: UpdateOrderExecution :execrows
 UPDATE orders
 SET remaining_quantity_units = sqlc.arg(remaining_quantity_units),

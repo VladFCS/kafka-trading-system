@@ -171,6 +171,31 @@ func (q *Queries) GetOrderByID(ctx context.Context, orderID string) (Order, erro
 	return i, err
 }
 
+const getOrderByIdempotencyKey = `-- name: GetOrderByIdempotencyKey :one
+SELECT order_id, symbol, side, price_cents, quantity_units, remaining_quantity_units, status, idempotency_key, canceled_at, created_at, updated_at
+FROM orders
+WHERE idempotency_key = $1
+`
+
+func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (Order, error) {
+	row := q.db.QueryRow(ctx, getOrderByIdempotencyKey, idempotencyKey)
+	var i Order
+	err := row.Scan(
+		&i.OrderID,
+		&i.Symbol,
+		&i.Side,
+		&i.PriceCents,
+		&i.QuantityUnits,
+		&i.RemainingQuantityUnits,
+		&i.Status,
+		&i.IdempotencyKey,
+		&i.CanceledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const lockUnpublishedOutboxEvents = `-- name: LockUnpublishedOutboxEvents :many
 SELECT id, aggregate_type, aggregate_id, event_type, topic, partition_key, payload, retry_count, last_error, created_at, published_at
 FROM order_outbox
