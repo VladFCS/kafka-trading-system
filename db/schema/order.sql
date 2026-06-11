@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS orders (
     price_cents BIGINT NOT NULL CHECK (price_cents > 0),
     quantity_units BIGINT NOT NULL CHECK (quantity_units > 0),
     remaining_quantity_units BIGINT NOT NULL CHECK (remaining_quantity_units >= 0 AND remaining_quantity_units <= quantity_units),
-    status TEXT NOT NULL CHECK (status IN ('PENDING', 'FILLED', 'CANCELED')),
+    status TEXT NOT NULL CONSTRAINT orders_status_check CHECK (status IN ('PENDING', 'FILLED', 'CANCELED')),
     idempotency_key TEXT,
     canceled_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

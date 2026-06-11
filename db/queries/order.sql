@@ -65,7 +65,7 @@ SET remaining_quantity_units = sqlc.arg(remaining_quantity_units),
     status = sqlc.arg(status),
     updated_at = NOW()
 WHERE order_id = sqlc.arg(order_id)
-  AND status = 'PENDING';
+  AND status = sqlc.arg(previous_status);
 
 -- name: CancelOrder :execrows
 UPDATE orders
@@ -73,7 +73,7 @@ SET status = 'CANCELED',
     canceled_at = NOW(),
     updated_at = NOW()
 WHERE order_id = sqlc.arg(order_id)
-  AND status = 'PENDING';
+  AND status = sqlc.arg(previous_status);
 
 -- name: LockUnpublishedOutboxEvents :many
 SELECT *

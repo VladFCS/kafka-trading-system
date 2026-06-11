@@ -17,11 +17,16 @@ SET status = 'CANCELED',
     canceled_at = NOW(),
     updated_at = NOW()
 WHERE order_id = $1
-  AND status = 'PENDING'
+  AND status = $2
 `
 
-func (q *Queries) CancelOrder(ctx context.Context, orderID string) (int64, error) {
-	result, err := q.db.Exec(ctx, cancelOrder, orderID)
+type CancelOrderParams struct {
+	OrderID        string `json:"order_id"`
+	PreviousStatus string `json:"previous_status"`
+}
+
+func (q *Queries) CancelOrder(ctx context.Context, arg CancelOrderParams) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelOrder, arg.OrderID, arg.PreviousStatus)
 	if err != nil {
 		return 0, err
 	}
@@ -295,17 +300,23 @@ SET remaining_quantity_units = $1,
     status = $2,
     updated_at = NOW()
 WHERE order_id = $3
-  AND status = 'PENDING'
+  AND status = $4
 `
 
 type UpdateOrderExecutionParams struct {
 	RemainingQuantityUnits int64  `json:"remaining_quantity_units"`
 	Status                 string `json:"status"`
 	OrderID                string `json:"order_id"`
+	PreviousStatus         string `json:"previous_status"`
 }
 
 func (q *Queries) UpdateOrderExecution(ctx context.Context, arg UpdateOrderExecutionParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateOrderExecution, arg.RemainingQuantityUnits, arg.Status, arg.OrderID)
+	result, err := q.db.Exec(ctx, updateOrderExecution,
+		arg.RemainingQuantityUnits,
+		arg.Status,
+		arg.OrderID,
+		arg.PreviousStatus,
+	)
 	if err != nil {
 		return 0, err
 	}
