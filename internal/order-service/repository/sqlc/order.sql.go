@@ -33,6 +33,88 @@ func (q *Queries) CancelOrder(ctx context.Context, arg CancelOrderParams) (int64
 	return result.RowsAffected(), nil
 }
 
+const claimUnpublishedOutboxEvents = `-- name: ClaimUnpublishedOutboxEvents :many
+WITH candidates AS (
+  SELECT order_outbox.id, order_outbox.created_at
+  FROM order_outbox
+  WHERE order_outbox.published_at IS NULL
+    AND (
+      order_outbox.locked_at IS NULL
+      OR order_outbox.locked_at < $1
+    )
+  ORDER BY order_outbox.created_at ASC
+  LIMIT $2
+  FOR UPDATE SKIP LOCKED
+),
+claimed AS (
+  UPDATE order_outbox
+  SET locked_at = NOW(),
+      locked_by = $3
+  WHERE order_outbox.id IN (SELECT candidates.id FROM candidates)
+  RETURNING id, aggregate_type, aggregate_id, event_type, topic, partition_key, payload, retry_count, last_error, locked_at, locked_by, created_at, published_at
+)
+SELECT claimed.id, claimed.aggregate_type, claimed.aggregate_id, claimed.event_type, claimed.topic, claimed.partition_key, claimed.payload, claimed.retry_count, claimed.last_error, claimed.locked_at, claimed.locked_by, claimed.created_at, claimed.published_at
+FROM claimed
+JOIN candidates ON candidates.id = claimed.id
+ORDER BY candidates.created_at ASC
+`
+
+type ClaimUnpublishedOutboxEventsParams struct {
+	ReclaimBefore pgtype.Timestamptz `json:"reclaim_before"`
+	LimitCount    int32              `json:"limit_count"`
+	LockedBy      pgtype.Text        `json:"locked_by"`
+}
+
+type ClaimUnpublishedOutboxEventsRow struct {
+	ID            string             `json:"id"`
+	AggregateType string             `json:"aggregate_type"`
+	AggregateID   string             `json:"aggregate_id"`
+	EventType     string             `json:"event_type"`
+	Topic         string             `json:"topic"`
+	PartitionKey  string             `json:"partition_key"`
+	Payload       []byte             `json:"payload"`
+	RetryCount    int32              `json:"retry_count"`
+	LastError     pgtype.Text        `json:"last_error"`
+	LockedAt      pgtype.Timestamptz `json:"locked_at"`
+	LockedBy      pgtype.Text        `json:"locked_by"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	PublishedAt   pgtype.Timestamptz `json:"published_at"`
+}
+
+func (q *Queries) ClaimUnpublishedOutboxEvents(ctx context.Context, arg ClaimUnpublishedOutboxEventsParams) ([]ClaimUnpublishedOutboxEventsRow, error) {
+	rows, err := q.db.Query(ctx, claimUnpublishedOutboxEvents, arg.ReclaimBefore, arg.LimitCount, arg.LockedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimUnpublishedOutboxEventsRow{}
+	for rows.Next() {
+		var i ClaimUnpublishedOutboxEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AggregateType,
+			&i.AggregateID,
+			&i.EventType,
+			&i.Topic,
+			&i.PartitionKey,
+			&i.Payload,
+			&i.RetryCount,
+			&i.LastError,
+			&i.LockedAt,
+			&i.LockedBy,
+			&i.CreatedAt,
+			&i.PublishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
   order_id,
@@ -196,74 +278,53 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey p
 	return i, err
 }
 
-const lockUnpublishedOutboxEvents = `-- name: LockUnpublishedOutboxEvents :many
-SELECT id, aggregate_type, aggregate_id, event_type, topic, partition_key, payload, retry_count, last_error, created_at, published_at
-FROM order_outbox
-WHERE published_at IS NULL
-ORDER BY created_at ASC
-LIMIT $1
-FOR UPDATE SKIP LOCKED
-`
-
-func (q *Queries) LockUnpublishedOutboxEvents(ctx context.Context, limitCount int32) ([]OrderOutbox, error) {
-	rows, err := q.db.Query(ctx, lockUnpublishedOutboxEvents, limitCount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []OrderOutbox{}
-	for rows.Next() {
-		var i OrderOutbox
-		if err := rows.Scan(
-			&i.ID,
-			&i.AggregateType,
-			&i.AggregateID,
-			&i.EventType,
-			&i.Topic,
-			&i.PartitionKey,
-			&i.Payload,
-			&i.RetryCount,
-			&i.LastError,
-			&i.CreatedAt,
-			&i.PublishedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const markOutboxEventFailed = `-- name: MarkOutboxEventFailed :exec
+const markOutboxEventFailed = `-- name: MarkOutboxEventFailed :execrows
 UPDATE order_outbox
 SET retry_count = retry_count + 1,
-    last_error = $1
+    last_error = $1,
+    locked_at = NULL,
+    locked_by = NULL
 WHERE id = $2
+  AND locked_by = $3
+  AND published_at IS NULL
 `
 
 type MarkOutboxEventFailedParams struct {
 	LastError pgtype.Text `json:"last_error"`
 	ID        string      `json:"id"`
+	LockedBy  pgtype.Text `json:"locked_by"`
 }
 
-func (q *Queries) MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) error {
-	_, err := q.db.Exec(ctx, markOutboxEventFailed, arg.LastError, arg.ID)
-	return err
+func (q *Queries) MarkOutboxEventFailed(ctx context.Context, arg MarkOutboxEventFailedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markOutboxEventFailed, arg.LastError, arg.ID, arg.LockedBy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const markOutboxEventPublished = `-- name: MarkOutboxEventPublished :exec
+const markOutboxEventPublished = `-- name: MarkOutboxEventPublished :execrows
 UPDATE order_outbox
 SET published_at = NOW(),
-    last_error = NULL
+    last_error = NULL,
+    locked_at = NULL,
+    locked_by = NULL
 WHERE id = $1
+  AND locked_by = $2
+  AND published_at IS NULL
 `
 
-func (q *Queries) MarkOutboxEventPublished(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, markOutboxEventPublished, id)
-	return err
+type MarkOutboxEventPublishedParams struct {
+	ID       string      `json:"id"`
+	LockedBy pgtype.Text `json:"locked_by"`
+}
+
+func (q *Queries) MarkOutboxEventPublished(ctx context.Context, arg MarkOutboxEventPublishedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markOutboxEventPublished, arg.ID, arg.LockedBy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateOrderExecution = `-- name: UpdateOrderExecution :execrows

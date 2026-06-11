@@ -29,12 +29,18 @@ CREATE TABLE IF NOT EXISTS order_outbox (
     payload JSONB NOT NULL,
     retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
     last_error TEXT,
+    locked_at TIMESTAMPTZ,
+    locked_by TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     published_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS order_outbox_unpublished_created_at_idx
     ON order_outbox (created_at ASC)
+    WHERE published_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS order_outbox_unpublished_locked_at_created_at_idx
+    ON order_outbox (locked_at, created_at ASC)
     WHERE published_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS order_outbox_aggregate_id_idx

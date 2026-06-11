@@ -71,22 +71,47 @@ SET status = 'CANCELED',
 WHERE order_id = sqlc.arg(order_id)
   AND status = sqlc.arg(previous_status);
 
--- name: LockUnpublishedOutboxEvents :many
-SELECT *
-FROM order_outbox
-WHERE published_at IS NULL
-ORDER BY created_at ASC
-LIMIT sqlc.arg(limit_count)
-FOR UPDATE SKIP LOCKED;
+-- name: ClaimUnpublishedOutboxEvents :many
+WITH candidates AS (
+  SELECT order_outbox.id, order_outbox.created_at
+  FROM order_outbox
+  WHERE order_outbox.published_at IS NULL
+    AND (
+      order_outbox.locked_at IS NULL
+      OR order_outbox.locked_at < sqlc.arg(reclaim_before)
+    )
+  ORDER BY order_outbox.created_at ASC
+  LIMIT sqlc.arg(limit_count)
+  FOR UPDATE SKIP LOCKED
+),
+claimed AS (
+  UPDATE order_outbox
+  SET locked_at = NOW(),
+      locked_by = sqlc.arg(locked_by)
+  WHERE order_outbox.id IN (SELECT candidates.id FROM candidates)
+  RETURNING *
+)
+SELECT claimed.*
+FROM claimed
+JOIN candidates ON candidates.id = claimed.id
+ORDER BY candidates.created_at ASC;
 
--- name: MarkOutboxEventPublished :exec
+-- name: MarkOutboxEventPublished :execrows
 UPDATE order_outbox
 SET published_at = NOW(),
-    last_error = NULL
-WHERE id = sqlc.arg(id);
+    last_error = NULL,
+    locked_at = NULL,
+    locked_by = NULL
+WHERE id = sqlc.arg(id)
+  AND locked_by = sqlc.arg(locked_by)
+  AND published_at IS NULL;
 
--- name: MarkOutboxEventFailed :exec
+-- name: MarkOutboxEventFailed :execrows
 UPDATE order_outbox
 SET retry_count = retry_count + 1,
-    last_error = sqlc.arg(last_error)
-WHERE id = sqlc.arg(id);
+    last_error = sqlc.arg(last_error),
+    locked_at = NULL,
+    locked_by = NULL
+WHERE id = sqlc.arg(id)
+  AND locked_by = sqlc.arg(locked_by)
+  AND published_at IS NULL;
