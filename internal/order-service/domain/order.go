@@ -40,6 +40,15 @@ const (
 	OrderStatusCanceled OrderStatus = "CANCELED"
 )
 
+func CanTransition(from OrderStatus, to OrderStatus) bool {
+	switch from {
+	case OrderStatusPending:
+		return to == OrderStatusFilled || to == OrderStatusCanceled
+	default:
+		return false
+	}
+}
+
 type Order struct {
 	OrderID                string      `json:"order_id"`
 	CustomerID             string      `json:"customer_id"`

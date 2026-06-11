@@ -134,7 +134,10 @@ func (r *PostgresRepository) CancelOrder(ctx context.Context, order domain.Order
 		return domain.ErrInvalidOrderStatus
 	}
 
-	rowsAffected, err := qtx.CancelOrder(ctx, order.OrderID)
+	rowsAffected, err := qtx.CancelOrder(ctx, orderdb.CancelOrderParams{
+		OrderID:        order.OrderID,
+		PreviousStatus: string(domain.OrderStatusPending),
+	})
 	if err != nil {
 		return fmt.Errorf("cancel order: %w", err)
 	}
@@ -238,6 +241,7 @@ func toUpdateOrderExecutionParams(order domain.Order) orderdb.UpdateOrderExecuti
 		OrderID:                order.OrderID,
 		RemainingQuantityUnits: order.RemainingQuantityUnits,
 		Status:                 string(order.Status),
+		PreviousStatus:         string(domain.OrderStatusPending),
 	}
 }
 

@@ -5,6 +5,73 @@ import (
 	"testing"
 )
 
+func TestCanTransition(t *testing.T) {
+	tests := []struct {
+		name string
+		from OrderStatus
+		to   OrderStatus
+		want bool
+	}{
+		{
+			name: "pending to filled",
+			from: OrderStatusPending,
+			to:   OrderStatusFilled,
+			want: true,
+		},
+		{
+			name: "pending to canceled",
+			from: OrderStatusPending,
+			to:   OrderStatusCanceled,
+			want: true,
+		},
+		{
+			name: "pending to pending is not a transition",
+			from: OrderStatusPending,
+			to:   OrderStatusPending,
+			want: false,
+		},
+		{
+			name: "filled to canceled rejected",
+			from: OrderStatusFilled,
+			to:   OrderStatusCanceled,
+			want: false,
+		},
+		{
+			name: "filled to pending rejected",
+			from: OrderStatusFilled,
+			to:   OrderStatusPending,
+			want: false,
+		},
+		{
+			name: "canceled to filled rejected",
+			from: OrderStatusCanceled,
+			to:   OrderStatusFilled,
+			want: false,
+		},
+		{
+			name: "unknown from status rejected",
+			from: OrderStatus("UNKNOWN"),
+			to:   OrderStatusFilled,
+			want: false,
+		},
+		{
+			name: "unknown to status rejected",
+			from: OrderStatusPending,
+			to:   OrderStatus("UNKNOWN"),
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CanTransition(tt.from, tt.to)
+			if got != tt.want {
+				t.Fatalf("CanTransition(%q, %q) = %t, want %t", tt.from, tt.to, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestOrderApplyFill(t *testing.T) {
 	tests := []struct {
 		name          string
