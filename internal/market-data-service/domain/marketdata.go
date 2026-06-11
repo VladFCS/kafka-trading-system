@@ -10,7 +10,6 @@ const (
 )
 
 type LatestPrice struct {
-	SymbolID   string    `json:"symbol_id"`
 	Symbol     string    `json:"symbol"`
 	PriceCents int64     `json:"price_cents"`
 	UpdatedAt  time.Time `json:"updated_at"`
